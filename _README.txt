@@ -24,6 +24,3 @@
 "transform_points_to_base.py"    - tranform points into the UR5 base frame
 
 
-TEST CHANGES
-
-TEST CHANGES 2
