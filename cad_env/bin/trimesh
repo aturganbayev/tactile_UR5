@@ -1,0 +1,6 @@
+#!/home/gifty4/tactile_UR5/cad_env/bin/python3
+import sys
+from trimesh import __main__
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(__main__.main())
