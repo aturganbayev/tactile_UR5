@@ -22,3 +22,6 @@
 "test_aza.py"                    - main script containing the whole experiment. IN PROGRESS
 "touch_poses"                    - generated touch poses
 "transform_points_to_base.py"    - tranform points into the UR5 base frame
+
+
+TEST CHANGES
