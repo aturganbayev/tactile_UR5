@@ -1,13 +1,12 @@
 import numpy as np
 import pandas as pd
 
-from pose_utils import approach_and_press_poses
+from pose_utils import approach_distance, press_distance, approach_and_press_poses
 
 input_csv = "surface_points_base.csv"
 output_csv = "touch_poses.csv"
 
-approach_distance = 0.015
-press_distance = 0.005
+
 
 df = pd.read_csv(input_csv)
 

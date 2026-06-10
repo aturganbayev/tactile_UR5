@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from pose_utils import approach_and_press_poses
+from pose_utils import approach_distance, press_distance, approach_and_press_poses
 
-NUM_POINTS = 2
+NUM_POINTS = 5
 # Keep points close to the apex row in base-frame Y (meters).
 MAX_Y_OFFSET_M = 0.01
 
@@ -60,8 +60,7 @@ def main():
         print(f"  angle={np.degrees(row['angle']):.1f} deg, |dy|={dy_mm:.1f} mm")
     
     # Generate touch poses
-    approach_distance = 0.015
-    press_distance = 0.005
+
     poses = []
     
     for _, row in selected_df.iterrows():

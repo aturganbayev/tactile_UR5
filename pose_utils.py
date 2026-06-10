@@ -48,6 +48,10 @@ TOOL_TIP_OFFSET = np.array([0.0, 0.0, 0.086])
 START_POSE_ROTVEC = np.array([-2.2, 2.2, 0.0])
 START_CLEARANCE_M = 0.01
 
+# Approach & press distance m
+approach_distance = 0.015
+press_distance = 0.005
+
 
 def apex_start_tcp_pose(clearance_m=None, physical_points_csv="physical_points.csv"):
     """

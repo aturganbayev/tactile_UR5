@@ -227,6 +227,6 @@ Defined in `pose_utils.py` and the generator scripts:
 | Tool tip offset | `[0, 0, 0.086]` m | `pose_utils.py` |
 | Start clearance | `0.01` m (10 mm above apex) | `pose_utils.py` |
 | Default start orientation | `[-2.2, 2.2, 0.0]` rad | `pose_utils.py` |
-| Approach stand-off | `0.015` m | generator scripts |
-| Press depth | `0.005` m | generator scripts |
+| Approach stand-off | `0.015` m | `pose_utils.py` |
+| Press depth | `0.005` m | `pose_utils.py` |
 | Upper zone threshold | top 25 % of cone height | `generate_random_upper_poses.py` |
