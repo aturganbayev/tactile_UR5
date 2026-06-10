@@ -169,7 +169,7 @@ Each row in all pose CSVs contains a paired approach pose (15 mm stand-off along
 Moves the robot from the home configuration through a safe pre-pose to the hover position directly above the cone apex (10 mm clearance).
 
 ```bash
-python "movement helper scripts/home_start.py"
+python movement_scripts/home_start.py
 ```
 
 Prompts for `sim` or `real` mode. Motion sequence:
@@ -183,7 +183,7 @@ Home joints [0, -π/2, 0, -π/2, 0, 0]
 To move directly to the start pose only (skipping the pre-pose joint move):
 
 ```bash
-python "movement helper scripts/start_pose.py"
+python movement_scripts/start_pose.py
 ```
 
 ---
@@ -205,7 +205,7 @@ python run_side_strip_poses.py
 ### Step 9 — Return to home
 
 ```bash
-python "movement helper scripts/go_home.py"
+python movement_scripts/go_home.py
 ```
 
 Sends a single `movej` command to the home configuration `[0, -π/2, 0, -π/2, 0, 0]`.
@@ -217,7 +217,7 @@ Sends a single `movej` command to the home configuration `[0, -π/2, 0, -π/2, 0
 Immediately decelerates and stops the robot (does not require mode selection).
 
 ```bash
-python "movement helper scripts/stop_robot.py"
+python movement_scripts/stop_robot.py
 ```
 
 Sends `stopl(1.2)` directly to the real robot at `192.168.0.153`.
@@ -241,10 +241,10 @@ Sends `stopl(1.2)` directly to the real robot at `192.168.0.153`.
 | `generate_side_strip_poses.py` | Generate poses along one side of the cone, top to bottom |
 | `run_random_upper_poses.py` | Execute upper-surface touch sequence on the robot |
 | `run_side_strip_poses.py` | Execute side strip touch sequence on the robot |
-| `movement helper scripts/home_start.py` | Move robot home → pre-pose → start pose |
-| `movement helper scripts/start_pose.py` | Move robot directly to start pose |
-| `movement helper scripts/go_home.py` | Return robot to home configuration |
-| `movement helper scripts/stop_robot.py` | Emergency stop |
+| `movement_scripts/home_start.py` | Move robot home → pre-pose → start pose |
+| `movement_scripts/start_pose.py` | Move robot directly to start pose |
+| `movement_scripts/go_home.py` | Return robot to home configuration |
+| `movement_scripts/stop_robot.py` | Emergency stop |
 | `surface_points.csv` | Raw STL surface points (mm, STL frame) |
 | `surface_points_base.csv` | Surface points in robot base frame (m) |
 | `physical_points.csv` | Recorded physical touch points from teach pendant |
@@ -253,6 +253,7 @@ Sends `stopl(1.2)` directly to the real robot at `192.168.0.153`.
 | `random_upper_touch_poses.csv` | Random upper-surface touch poses |
 | `side_strip_touch_poses.csv` | Side strip touch poses |
 | `figures/` | Saved plot outputs |
+| `robot_data/` | Directory for robot execution logs and recorded data |
 | `cad_env/` | Python virtual environment |
 
 ---
