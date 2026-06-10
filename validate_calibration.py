@@ -1,5 +1,7 @@
+import os
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from scipy.spatial import cKDTree
 
 from pose_utils import tcp_pose_to_contact

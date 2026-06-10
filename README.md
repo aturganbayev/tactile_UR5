@@ -213,7 +213,6 @@ Sends `stopl(1.2)` directly to the real robot at `192.168.0.153`.
 | `record_icp_points.py` | Interactively record physical touch points from the teach pendant |
 | `calibrate_icp.py` | ICP alignment of STL to robot base frame |
 | `validate_calibration.py` | Verify calibration quality against recorded points |
-| `transform_points_to_base.py` | Manual apex-offset transform (alternative to ICP) |
 | `generate_touch_poses.py` | Generate approach/press poses for the full surface |
 | `generate_random_upper_poses.py` | Generate poses for random upper-surface points |
 | `run_random_upper_poses.py` | Execute upper-surface touch sequence on the robot |
