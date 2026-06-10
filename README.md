@@ -62,7 +62,7 @@ python cone_plot_normals.py
 
 | Point cloud | Surface normals |
 |---|---|
-| ![Surface point cloud](figures/surface__points_cone_plot.png) | ![Surface normals](figures/surface__points_cone_normals_plot.png) |
+| ![Surface point cloud](figures/example_surface__points_cone_plot.png) | ![Surface normals](figures/example_surface__points_cone_normals_plot.png) |
 
 ---
 
@@ -137,7 +137,7 @@ python generate_random_upper_poses.py
 
 **Output:** `random_upper_touch_poses.csv`, `figures/random_upper_points_plot.png`
 
-![Random upper touch poses](figures/random_upper_points_plot.png)
+![Random upper touch poses](figures/example_random_upper_points_plot.png)
 
 #### 6c — Single side strip (top to bottom)
 
@@ -149,7 +149,7 @@ python generate_side_strip_poses.py
 
 **Output:** `side_strip_touch_poses.csv`, `figures/side_strip_touch_poses.png`
 
-![Side strip touch poses](figures/side_strip_touch_poses.png)
+![Side strip touch poses](figures/example_side_strip_touch_poses.png)
 
 Key parameters at the top of the script:
 
