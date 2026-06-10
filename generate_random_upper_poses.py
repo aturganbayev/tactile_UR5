@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -112,14 +113,11 @@ def main():
     ax.set_title(f'{NUM_POINTS} Random Upper Surface Points and Normals')
     ax.legend()
     
-    plt.savefig("random_upper_points_plot.png")
-    print("Saved plot to random_upper_points_plot.png")
+    os.makedirs("figures", exist_ok=True)
+    plt.savefig("figures/random_upper_points_plot.png")
+    print("Saved plot to figures/random_upper_points_plot.png")
     
-    try:
-        plt.show(block=False)
-        plt.pause(2)
-    except Exception:
-        pass # Ignore display errors if no GUI is available
+    plt.show()
 
 if __name__ == "__main__":
     main()

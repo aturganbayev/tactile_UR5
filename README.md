@@ -54,11 +54,11 @@ python extract_points.py
 # Plot sampled surface points
 python cone_plot.py
 
-# Plot surface points with surface normals
+# Plot surface points with corrected outward normals
 python cone_plot_normals.py
 ```
 
-**Output:** `surface__points_cone_plot.png`
+**Outputs:** `figures/surface__points_cone_plot.png`, `figures/surface__points_cone_normals_plot.png`
 
 ---
 
@@ -125,13 +125,13 @@ python generate_touch_poses.py
 
 #### 6b — Random upper-surface poses
 
-Selects `NUM_POINTS` points from the upper quarter of the cone, spread evenly by angle and filtered to within `MAX_Y_OFFSET_M` of the apex Y row.
+Selects `NUM_POINTS` points (default: 5) from the upper quarter of the cone, spread evenly by angle and filtered to within `MAX_Y_OFFSET_M` of the apex Y row.
 
 ```bash
 python generate_random_upper_poses.py
 ```
 
-**Output:** `random_upper_touch_poses.csv`, `random_upper_points_plot.png`
+**Output:** `random_upper_touch_poses.csv`, `figures/random_upper_points_plot.png`
 
 Each row in both CSVs contains a paired approach pose (15 mm stand-off along the surface normal) and a press pose (5 mm into the surface).
 
@@ -142,7 +142,7 @@ Each row in both CSVs contains a paired approach pose (15 mm stand-off along the
 Moves the robot from the home configuration through a safe pre-pose to the hover position directly above the cone apex (10 mm clearance).
 
 ```bash
-python home_start.py
+python "movement helper scripts/home_start.py"
 ```
 
 Prompts for `sim` or `real` mode. Motion sequence:
@@ -151,6 +151,12 @@ Prompts for `sim` or `real` mode. Motion sequence:
 Home joints [0, -π/2, 0, -π/2, 0, 0]
   └─ movej → Pre-pose [-π/2, -π/2, -π/2, -π/2, π/2, -π/2]
        └─ movel → Start pose (apex TCP + 10 mm Z)
+```
+
+To move directly to the start pose only (skipping the pre-pose joint move):
+
+```bash
+python "movement helper scripts/start_pose.py"
 ```
 
 ---
@@ -170,7 +176,7 @@ Prompts for `sim` or `real`. Reads `random_upper_touch_poses.csv` and sends a si
 ### Step 9 — Return to home
 
 ```bash
-python go_home.py
+python "movement helper scripts/go_home.py"
 ```
 
 Sends a single `movej` command to the home configuration `[0, -π/2, 0, -π/2, 0, 0]`.
@@ -182,7 +188,7 @@ Sends a single `movej` command to the home configuration `[0, -π/2, 0, -π/2, 0
 Immediately decelerates and stops the robot (does not require mode selection).
 
 ```bash
-python stop_robot.py
+python "movement helper scripts/stop_robot.py"
 ```
 
 Sends `stopl(1.2)` directly to the real robot at `192.168.0.153`.
@@ -197,23 +203,25 @@ Sends `stopl(1.2)` directly to the real robot at `192.168.0.153`.
 | `pose_utils.py` | Geometry helpers: TCP↔contact conversion, normal→rotation vector |
 | `extract_points.py` | Sample surface points and normals from STL |
 | `cone_plot.py` | Visualise sampled surface point cloud |
-| `cone_plot_normals.py` | Visualise surface points with normals |
+| `cone_plot_normals.py` | Visualise surface points with corrected outward normals |
 | `record_icp_points.py` | Interactively record physical touch points from the teach pendant |
 | `calibrate_icp.py` | ICP alignment of STL to robot base frame |
 | `validate_calibration.py` | Verify calibration quality against recorded points |
 | `transform_points_to_base.py` | Manual apex-offset transform (alternative to ICP) |
 | `generate_touch_poses.py` | Generate approach/press poses for the full surface |
 | `generate_random_upper_poses.py` | Generate poses for random upper-surface points |
-| `home_start.py` | Move robot home → pre-pose → start pose |
 | `run_random_upper_poses.py` | Execute upper-surface touch sequence on the robot |
-| `go_home.py` | Return robot to home configuration |
-| `stop_robot.py` | Emergency stop |
+| `movement helper scripts/home_start.py` | Move robot home → pre-pose → start pose |
+| `movement helper scripts/start_pose.py` | Move robot directly to start pose |
+| `movement helper scripts/go_home.py` | Return robot to home configuration |
+| `movement helper scripts/stop_robot.py` | Emergency stop |
 | `surface_points.csv` | Raw STL surface points (mm, STL frame) |
 | `surface_points_base.csv` | Surface points in robot base frame (m) |
 | `physical_points.csv` | Recorded physical touch points from teach pendant |
 | `icp_transformation_matrix.txt` | 4×4 STL-to-robot transform from ICP |
 | `touch_poses.csv` | Full-surface touch poses |
 | `random_upper_touch_poses.csv` | Random upper-surface touch poses |
+| `figures/` | Saved plot outputs |
 | `cad_env/` | Python virtual environment |
 
 ---

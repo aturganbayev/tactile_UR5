@@ -1,5 +1,8 @@
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
+
+os.makedirs("figures", exist_ok=True)
 
 # Read CSV
 df = pd.read_csv("surface_points.csv")
@@ -32,5 +35,5 @@ ax.set_xlim(mid_x-max_range, mid_x+max_range)
 ax.set_ylim(mid_y-max_range, mid_y+max_range)
 ax.set_zlim(mid_z-max_range, mid_z+max_range)
 
-fig.savefig("surface__points_cone_plot.png", dpi=300, bbox_inches="tight")
+fig.savefig("figures/surface__points_cone_plot.png", dpi=300, bbox_inches="tight")
 plt.show()
