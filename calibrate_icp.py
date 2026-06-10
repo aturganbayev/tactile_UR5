@@ -9,15 +9,21 @@ from pose_utils import tcp_pose_to_contact
 def load_physical_contacts():
     df = pd.read_csv("physical_points.csv")
 
-    if {"x", "y", "z"}.issubset(df.columns) and not {"x_tcp", "y_tcp", "z_tcp"}.issubset(df.columns):
-        print(
-            "Warning: physical_points.csv contains only x,y,z without orientation.\n"
-            "Those values are likely TCP positions, not surface contact points.\n"
-            "Re-run record_icp_points.py and record full TCP poses."
-        )
+    if {"rx", "ry", "rz"}.issubset(df.columns):
+        contacts = []
+        for _, row in df.iterrows():
+            contacts.append(
+                tcp_pose_to_contact(
+                    [row["x_tcp"], row["y_tcp"], row["z_tcp"]],
+                    [row["rx"], row["ry"], row["rz"]],
+                )
+            )
+        return np.asarray(contacts, dtype=float)
+
+    if {"x", "y", "z"}.issubset(df.columns):
         return df[["x", "y", "z"]].to_numpy(dtype=float)
 
-    raise ValueError("physical_points.csv has an unexpected format.")
+    raise ValueError("physical_points.csv must contain contact points or full TCP poses.")
 
 
 def mesh_apex_meters(mesh):
