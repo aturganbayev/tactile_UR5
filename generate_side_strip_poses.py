@@ -8,10 +8,10 @@ from pose_utils import approach_distance, press_distance, approach_and_press_pos
 # --- Parameters ---
 NUM_POINTS = 10          # number of touch points along the strip
 SIDE_ANGLE_DEG = 180.0   # direction of the target side in degrees
-                         # (0=+X, 90=+Y, 180=-X, 270/-90=-Y)
+                         # (0=left side, 90=+Y, 180= right side, 270/-90=-Y)
                          # run the script once to see the angle map printed below
 ANGLE_WIDTH_DEG = 10   # angular width of the slice (±half of this around SIDE_ANGLE_DEG)
-MIN_HEIGHT_FRACTION = 0.4  # lower bound of the strip as a fraction of cone height
+MIN_HEIGHT_FRACTION = 0.5  # lower bound of the strip as a fraction of cone height
                              # (0.0=base, 1.0=apex); 0.25 means the bottom of the
                              # strip is at 1/4 of the total cone height
 
