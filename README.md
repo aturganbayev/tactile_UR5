@@ -37,7 +37,7 @@ pip install trimesh numpy pandas scipy matplotlib
 
 ### Step 1 — Extract surface points from STL
 
-Samples 1000 points (with surface normals) from the cone CAD model.
+Samples 3000 points (with surface normals) from the cone CAD model.
 
 ```bash
 python extract_points.py
@@ -139,7 +139,26 @@ python generate_random_upper_poses.py
 
 ![Random upper touch poses](figures/random_upper_points_plot.png)
 
-Each row in both CSVs contains a paired approach pose (15 mm stand-off along the surface normal) and a press pose (5 mm into the surface).
+#### 6c — Single side strip (top to bottom)
+
+Selects `NUM_POINTS` points along one side of the cone, evenly distributed from the apex down to `MIN_HEIGHT_FRACTION` of the cone height. Each height band picks the point closest to `SIDE_ANGLE_DEG`, keeping all points on the same curve.
+
+```bash
+python generate_side_strip_poses.py
+```
+
+**Output:** `side_strip_touch_poses.csv`, `figures/side_strip_touch_poses.png`
+
+Key parameters at the top of the script:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `NUM_POINTS` | `10` | Points along the strip |
+| `SIDE_ANGLE_DEG` | `180` | Target side — 0=+X, 90=+Y, 180=−X, −90=−Y |
+| `ANGLE_WIDTH_DEG` | `10` | Angular band width for the visualisation |
+| `MIN_HEIGHT_FRACTION` | `0.4` | Lower bound of the strip (fraction of cone height) |
+
+Each row in all pose CSVs contains a paired approach pose (15 mm stand-off along the surface normal) and a press pose (5 mm into the surface).
 
 ---
 
@@ -169,13 +188,15 @@ python "movement helper scripts/start_pose.py"
 
 ### Step 8 — Execute touch sequence
 
-Streams the full URScript program to the robot. For each pose: move to approach → press → retract.
+Streams the full URScript program to the robot. For each pose: move to approach → press → retract. Prompts for `sim` or `real`. The robot returns to the start pose after all touches complete.
 
 ```bash
+# Run random upper-surface poses (from step 6b)
 python run_random_upper_poses.py
-```
 
-Prompts for `sim` or `real`. Reads `random_upper_touch_poses.csv` and sends a single self-contained URScript to the robot. The robot returns to the start pose after all touches complete.
+# Run side strip poses (from step 6c)
+python run_side_strip_poses.py
+```
 
 ---
 
@@ -215,7 +236,9 @@ Sends `stopl(1.2)` directly to the real robot at `192.168.0.153`.
 | `validate_calibration.py` | Verify calibration quality against recorded points |
 | `generate_touch_poses.py` | Generate approach/press poses for the full surface |
 | `generate_random_upper_poses.py` | Generate poses for random upper-surface points |
+| `generate_side_strip_poses.py` | Generate poses along one side of the cone, top to bottom |
 | `run_random_upper_poses.py` | Execute upper-surface touch sequence on the robot |
+| `run_side_strip_poses.py` | Execute side strip touch sequence on the robot |
 | `movement helper scripts/home_start.py` | Move robot home → pre-pose → start pose |
 | `movement helper scripts/start_pose.py` | Move robot directly to start pose |
 | `movement helper scripts/go_home.py` | Return robot to home configuration |
@@ -226,6 +249,7 @@ Sends `stopl(1.2)` directly to the real robot at `192.168.0.153`.
 | `icp_transformation_matrix.txt` | 4×4 STL-to-robot transform from ICP |
 | `touch_poses.csv` | Full-surface touch poses |
 | `random_upper_touch_poses.csv` | Random upper-surface touch poses |
+| `side_strip_touch_poses.csv` | Side strip touch poses |
 | `figures/` | Saved plot outputs |
 | `cad_env/` | Python virtual environment |
 
@@ -243,3 +267,5 @@ Defined in `pose_utils.py` and the generator scripts:
 | Approach stand-off | `0.015` m | `pose_utils.py` |
 | Press depth | `0.005` m | `pose_utils.py` |
 | Upper zone threshold | top 25 % of cone height | `generate_random_upper_poses.py` |
+| Side strip angle | `180°` (−X direction) | `generate_side_strip_poses.py` |
+| Side strip lower bound | `0.4` (40 % from base) | `generate_side_strip_poses.py` |
