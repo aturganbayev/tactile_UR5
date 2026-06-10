@@ -115,7 +115,7 @@ Re-run `calibrate_icp.py` if mean error exceeds 5 mm.
 
 ### Step 6 — Generate touch poses
 
-Two options depending on the experiment scope:
+Three options depending on the experiment scope:
 
 #### 6a — Full surface coverage
 
