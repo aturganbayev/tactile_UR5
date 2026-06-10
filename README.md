@@ -60,6 +60,10 @@ python cone_plot_normals.py
 
 **Outputs:** `figures/surface__points_cone_plot.png`, `figures/surface__points_cone_normals_plot.png`
 
+| Point cloud | Surface normals |
+|---|---|
+| ![Surface point cloud](figures/surface__points_cone_plot.png) | ![Surface normals](figures/surface__points_cone_normals_plot.png) |
+
 ---
 
 ### Step 3 — Record physical calibration points
@@ -132,6 +136,8 @@ python generate_random_upper_poses.py
 ```
 
 **Output:** `random_upper_touch_poses.csv`, `figures/random_upper_points_plot.png`
+
+![Random upper touch poses](figures/random_upper_points_plot.png)
 
 Each row in both CSVs contains a paired approach pose (15 mm stand-off along the surface normal) and a press pose (5 mm into the surface).
 
