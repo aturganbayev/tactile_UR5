@@ -10,7 +10,7 @@ NUM_POINTS = 10          # number of touch points along the strip
 SIDE_ANGLE_DEG = 180.0   # direction of the target side in degrees
                          # (0=left side, 90=+Y, 180= right side, 270/-90=-Y)
                          # run the script once to see the angle map printed below
-ANGLE_WIDTH_DEG = 10   # angular width of the slice (±half of this around SIDE_ANGLE_DEG)
+ANGLE_WIDTH_DEG = 0   # angular width of the slice (±half of this around SIDE_ANGLE_DEG)
 MIN_HEIGHT_FRACTION = 0.5  # lower bound of the strip as a fraction of cone height
                              # (0.0=base, 1.0=apex); 0.25 means the bottom of the
                              # strip is at 1/4 of the total cone height
@@ -111,15 +111,15 @@ def main():
 
     # All cone points
     ax.scatter(df["x"], df["y"], df["z"],
-               c='lightgray', s=1, alpha=0.15, label="All surface points")
+               c='dimgray', s=3, alpha=0.4, label="All surface points")
 
     # Strip candidates (within the angular band, for visual reference)
     ax.scatter(df_strip["x"], df_strip["y"], df_strip["z"],
-               c='steelblue', s=8, alpha=0.5, label=f"Strip ±{half_width:.0f}°")
+               c='steelblue', s=12, alpha=0.8, label=f"Strip ±{half_width:.0f}°")
 
     # Selected points — large red stars
     ax.scatter(poses_df["x"], poses_df["y"], poses_df["z"],
-               c='red', s=120, marker='*', zorder=5, label="Selected points")
+               c='red', s=180, marker='*', zorder=5, label="Selected points")
 
     # Surface normals at selected points
     ax.quiver(poses_df["x"], poses_df["y"], poses_df["z"],
