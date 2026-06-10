@@ -149,6 +149,8 @@ python generate_side_strip_poses.py
 
 **Output:** `side_strip_touch_poses.csv`, `figures/side_strip_touch_poses.png`
 
+![Side strip touch poses](figures/side_strip_touch_poses.png)
+
 Key parameters at the top of the script:
 
 | Parameter | Default | Description |
