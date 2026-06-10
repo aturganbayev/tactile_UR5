@@ -3,7 +3,7 @@ import pandas as pd
 
 mesh = trimesh.load("cone.STL")
 
-points, face_indices = trimesh.sample.sample_surface(mesh, 1000)
+points, face_indices = trimesh.sample.sample_surface(mesh, 3000)
 
 normals = mesh.face_normals[face_indices]
 
