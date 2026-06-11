@@ -285,4 +285,3 @@ Defined in `pose_utils.py` and the generator scripts:
 | Number of strips | `4` (evenly around the cone) | `generate_side_strip_poses.py` |
 | Side strip lower bound | `0.6` (60 % from base) | `generate_side_strip_poses.py` |
 
-Check Linh git pull
