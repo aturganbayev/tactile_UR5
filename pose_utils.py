@@ -43,6 +43,36 @@ def normal_to_rotvec(normal):
     return R.from_matrix(np.column_stack((x_tcp, y_tcp, z_tcp))).as_rotvec()
 
 
+def tilt_normal_toward_vertical(normal, tilt_deg):
+    """Rotate a normal toward world +Z by tilt_deg degrees.
+
+    Used to tilt the tool orientation away from the surface so the sensor
+    holder clears the cone below the contact point. Clamped so the result
+    never tilts past vertical.
+    """
+    normal = np.asarray(normal, dtype=float)
+    normal = normal / np.linalg.norm(normal)
+    if tilt_deg <= 0.0:
+        return normal
+
+    world_z = np.array([0.0, 0.0, 1.0])
+    axis = np.cross(normal, world_z)
+    axis_norm = np.linalg.norm(axis)
+    if axis_norm < 1e-6:
+        return normal  # already vertical
+
+    angle_to_z = np.arccos(np.clip(np.dot(normal, world_z), -1.0, 1.0))
+    tilt = min(np.radians(tilt_deg), angle_to_z)
+    return R.from_rotvec(axis / axis_norm * tilt).apply(normal)
+
+
+# Velocity and Acceleration for Sim and Real Robot (m/s; m/s^2)
+
+A_sim = 2.5
+A_real = 0.1
+V_sim = 1
+V_real = 0.05
+
 # Default orientation used when hovering above the cone apex.
 TOOL_TIP_OFFSET = np.array([0.0, 0.0, 0.086])
 START_POSE_ROTVEC = np.array([-2.2, 2.2, 0.0])
@@ -50,7 +80,12 @@ START_CLEARANCE_M = 0.01
 
 # Approach & press distance m
 approach_distance = 0.015
-press_distance = 0.005
+press_distance = 0.01
+
+# Max tool tilt toward vertical (deg) so the printed sensor holder clears
+# the cone surface below the contact point. Generators scale this with
+# height: 0 near the apex, full value at the lowest touch band.
+MAX_ORIENTATION_TILT_DEG = 15.0
 
 
 def apex_start_tcp_pose(clearance_m=None, physical_points_csv="physical_points.csv"):
@@ -78,8 +113,13 @@ def apex_start_tcp_pose(clearance_m=None, physical_points_csv="physical_points.c
     return np.concatenate([tcp, rotvec])
 
 
-def approach_and_press_poses(surface_point, normal, approach_distance, press_distance, tip_offset=None):
-    """Build TCP approach/press poses for a desired surface contact point."""
+def approach_and_press_poses(surface_point, normal, approach_distance, press_distance, tip_offset=None, tilt_deg=0.0):
+    """Build TCP approach/press poses for a desired surface contact point.
+
+    tilt_deg tilts only the tool ORIENTATION toward vertical (holder
+    clearance); the tip positions and press direction stay on the true
+    surface normal.
+    """
     if tip_offset is None:
         tip_offset = TOOL_TIP_OFFSET
 
@@ -87,7 +127,7 @@ def approach_and_press_poses(surface_point, normal, approach_distance, press_dis
     normal = np.asarray(normal, dtype=float)
     normal = normal / np.linalg.norm(normal)
 
-    rotvec = normal_to_rotvec(normal)
+    rotvec = normal_to_rotvec(tilt_normal_toward_vertical(normal, tilt_deg))
     tip_approach = surface_point + approach_distance * normal
     tip_press = surface_point - press_distance * normal
 
