@@ -2,7 +2,7 @@ import socket
 import time
 import pandas as pd
 
-from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str
+from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real
 
 
 
@@ -17,12 +17,12 @@ def main():
     mode = input("Select mode ('sim' or 'real'): ").strip().lower()
     if mode == "sim":
         HOST = "172.17.0.2"
-        A = 2.4
-        V = 0.5
+        A = A_sim
+        V = V_sim
     elif mode == "real":
         HOST = "192.168.0.153"
-        A = 0.1
-        V = 0.05
+        A = A_real
+        V = V_real
     else:
         print("Invalid mode. Exiting.")
         return
@@ -38,29 +38,30 @@ def main():
     )
 
     ur_script_lines = ["def my_program():"]
-    
-    # Initial safe move to start pose (both position and default orientation)
-    ur_script_lines.append(f"  movel(p[{start_pose_str}], a={A}, v={V})")
+    # Safe reference configuration (pre-pose): joint 5 = 90° keeps the wrist away from singularity
+    ur_script_lines.append("  qnear = [-1.57, -1.57, -1.57, -1.57, 1.57, -1.57]")
+
+    # Initial safe move to start pose
+    ur_script_lines.append(f"  movej(get_inverse_kin(p[{start_pose_str}], qnear), a={A}, v={V})")
     ur_script_lines.append("  sleep(0.5)")
+    ur_script_lines.append("  qnear = get_actual_joint_positions()")
 
     for _, row in poses_df.iterrows():
         approach = [row["approach_x"], row["approach_y"], row["approach_z"], row["approach_rx"], row["approach_ry"], row["approach_rz"]]
         press = [row["press_x"], row["press_y"], row["press_z"], row["press_rx"], row["press_ry"], row["press_rz"]]
-        
-        # 1. Move to approach point
-        ur_script_lines.append(f"  movel(p[{pose_str(approach)}], a={A}, v={V})")
+
+        # Transit to approach in joint space, biased toward last known good config
+        ur_script_lines.append(f"  movej(get_inverse_kin(p[{pose_str(approach)}], qnear), a={A}, v={V})")
         ur_script_lines.append("  sleep(0.5)")
-        
-        # 2. Press into the cone
+        ur_script_lines.append("  qnear = get_actual_joint_positions()")
+        # Press and retract in Cartesian (short, controlled linear motion)
         ur_script_lines.append(f"  movel(p[{pose_str(press)}], a={A}, v={V})")
         ur_script_lines.append("  sleep(0.5)")
-        
-        # 3. Retract back to approach point
         ur_script_lines.append(f"  movel(p[{pose_str(approach)}], a={A}, v={V})")
         ur_script_lines.append("  sleep(0.5)")
-        
+
     # Final move back to original start pose
-    ur_script_lines.append(f"  movel(p[{start_pose_str}], a={A}, v={V})")
+    ur_script_lines.append(f"  movej(get_inverse_kin(p[{start_pose_str}], qnear), a={A}, v={V})")
     ur_script_lines.append("end\nmy_program()\n")
     
     ur_script = "\n".join(ur_script_lines)

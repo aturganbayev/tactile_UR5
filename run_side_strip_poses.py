@@ -2,11 +2,11 @@ import socket
 import time
 import pandas as pd
 
-from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str
+from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real
 
 
 def main():
-    input_csv = "side_strip_touch_poses.csv"
+    input_csv = "cone_touch_poses.csv"
     try:
         poses_df = pd.read_csv(input_csv)
     except FileNotFoundError:
@@ -16,12 +16,12 @@ def main():
     mode = input("Select mode ('sim' or 'real'): ").strip().lower()
     if mode == "sim":
         HOST = "172.17.0.2"
-        A = 2.4
-        V = 0.5
+        A = A_sim
+        V = V_sim
     elif mode == "real":
         HOST = "192.168.0.153"
-        A = 0.1
-        V = 0.05
+        A = A_real
+        V = V_real
     else:
         print("Invalid mode. Exiting.")
         return
@@ -30,6 +30,13 @@ def main():
 
     start_pose = apex_start_tcp_pose(clearance_m=START_CLEARANCE_M)
     start_pose_str = pose_str(start_pose)
+
+    # Via point used between strips: hover well above the apex so the
+    # transit from the bottom of one strip to the top of the next never
+    # sweeps through the cone.
+    VIA_CLEARANCE_M = 0.05
+    via_pose = apex_start_tcp_pose(clearance_m=VIA_CLEARANCE_M)
+    via_pose_str = pose_str(via_pose)
     print(
         f"Start pose: apex TCP + {START_CLEARANCE_M * 1000:.0f} mm in Z -> "
         f"[{start_pose[0]:.6f}, {start_pose[1]:.6f}, {start_pose[2]:.6f}, "
@@ -37,27 +44,47 @@ def main():
     )
 
     ur_script_lines = ["def my_program():"]
+    # Safe reference configuration (pre-pose): joint 5 = 90° keeps the wrist away from singularity
+    ur_script_lines.append("  qnear = [-1.57, -1.57, -1.57, -1.57, 1.57, -1.57]")
 
     # Move to safe start pose above the apex
-    ur_script_lines.append(f"  movel(p[{start_pose_str}], a={A}, v={V})")
+    ur_script_lines.append(f"  movej(get_inverse_kin(p[{start_pose_str}], qnear), a={A}, v={V})")
     ur_script_lines.append("  sleep(0.5)")
 
-    for _, row in poses_df.iterrows():
+    prev_strip = None
+    for i, (_, row) in enumerate(poses_df.iterrows()):
         approach = [row["approach_x"], row["approach_y"], row["approach_z"],
                     row["approach_rx"], row["approach_ry"], row["approach_rz"]]
         press    = [row["press_x"],    row["press_y"],    row["press_z"],
                     row["press_rx"],   row["press_ry"],   row["press_rz"]]
 
-        # Approach → press → retract
-        ur_script_lines.append(f"  movel(p[{pose_str(approach)}], a={A}, v={V})")
+        # Lift to the apex via point before changing strips so the transit
+        # goes over the cone instead of through it.
+        strip = int(row["strip"])
+        if prev_strip is not None and strip != prev_strip:
+            ur_script_lines.append(f"  movej(get_inverse_kin(p[{via_pose_str}], qnear), a={A}, v={V})")
+            ur_script_lines.append("  sleep(0.5)")
+        prev_strip = strip
+
+        # Log pose index and IK solution so the failing pose shows in the
+        # pendant log (PolyScope -> Log tab) right before a protective stop.
+        ur_script_lines.append(f'  textmsg("pose {i} strip {strip}")')
+        ur_script_lines.append(f"  q = get_inverse_kin(p[{pose_str(approach)}], qnear)")
+        ur_script_lines.append('  textmsg("q: ", q)')
+
+        # Transit in joint space, always biased toward the fixed safe config.
+        # (Chaining qnear from actual positions causes joint wind-up as the
+        # strips wrap around the cone, eventually hitting joint limits.)
+        ur_script_lines.append(f"  movej(q, a={A}, v={V})")
         ur_script_lines.append("  sleep(0.5)")
+        # Press and retract in Cartesian (short, controlled linear motion)
         ur_script_lines.append(f"  movel(p[{pose_str(press)}], a={A}, v={V})")
         ur_script_lines.append("  sleep(0.5)")
         ur_script_lines.append(f"  movel(p[{pose_str(approach)}], a={A}, v={V})")
         ur_script_lines.append("  sleep(0.5)")
 
     # Return to start pose
-    ur_script_lines.append(f"  movel(p[{start_pose_str}], a={A}, v={V})")
+    ur_script_lines.append(f"  movej(get_inverse_kin(p[{start_pose_str}], qnear), a={A}, v={V})")
     ur_script_lines.append("end\nmy_program()\n")
 
     ur_script = "\n".join(ur_script_lines)
