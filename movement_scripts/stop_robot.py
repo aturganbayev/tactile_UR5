@@ -21,7 +21,7 @@ def main():
 
         cmd = (
             "def my_program():\n"
-            "  stopl(1.2)\n"
+            "  stopl(2.5)\n"
             "end\n"
             "my_program()\n"
         )

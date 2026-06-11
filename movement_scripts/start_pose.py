@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import socket
 import time
-from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str
+from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real
 
 # Constants
 PORT = 30003
@@ -16,16 +16,16 @@ while True:
 
         #Simulation Accelaration and Velocity
 
-        A = 2.4
-        V = 0.5
+        A = A_sim
+        V = V_sim
 
         break
 
     elif mode == "real":
         HOST = "192.168.0.153"  # <-- replace with your real robot IP
 
-        A = 0.1
-        V = 0.05
+        A = A_real
+        V = V_real
 
         break
     else:

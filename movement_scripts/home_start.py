@@ -4,19 +4,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import socket
 import time
-from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str
+from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real
 
 
 def main():
     mode = input("Select mode ('sim' or 'real'): ").strip().lower()
     if mode == "sim":
         HOST = "172.17.0.2"
-        A = 2.4
-        V = 0.5
+        A = A_sim
+        V = V_sim
     elif mode == "real":
         HOST = "192.168.0.153"
-        A = 0.1
-        V = 0.05
+        A = A_real
+        V = V_real
     else:
         print("Invalid mode. Exiting.")
         return
