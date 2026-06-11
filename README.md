@@ -284,3 +284,5 @@ Defined in `pose_utils.py` and the generator scripts:
 | Upper zone threshold | top 25 % of cone height | `generate_random_upper_poses.py` |
 | Number of strips | `4` (evenly around the cone) | `generate_side_strip_poses.py` |
 | Side strip lower bound | `0.6` (60 % from base) | `generate_side_strip_poses.py` |
+
+Check Linh git pull
