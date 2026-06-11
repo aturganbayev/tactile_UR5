@@ -8,7 +8,7 @@ figures/surface__points_cone_plot.png
 figures/surface__points_cone_normals_plot.png
 figures/random_upper_points_plot.png
 figures/side_strip_touch_poses.png
-
+figures/cone_touch_poses.png
 # Generated data files
 *.csv
 !physical_points.csv
