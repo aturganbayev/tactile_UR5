@@ -10,14 +10,14 @@ def rotvec_to_matrix(rotvec):
 
 
 def tcp_pose_to_contact(xyz, rotvec, tip_offset=None):
-    """Convert a TCP pose to the sensor tip (surface contact) position in base frame."""
+    # Convert a TCP pose to the sensor tip (surface contact) position in base frame
     if tip_offset is None:
         tip_offset = TOOL_TIP_OFFSET
     return np.asarray(xyz, dtype=float) + rotvec_to_matrix(rotvec) @ np.asarray(tip_offset, dtype=float)
 
 
 def contact_to_tcp_position(contact_xyz, rotvec, tip_offset=None):
-    """Convert a desired contact point to the TCP position for that orientation."""
+    # Convert a desired contact point to the TCP position for that orientation
     if tip_offset is None:
         tip_offset = TOOL_TIP_OFFSET
     return np.asarray(contact_xyz, dtype=float) - rotvec_to_matrix(rotvec) @ np.asarray(tip_offset, dtype=float)
@@ -82,9 +82,13 @@ START_CLEARANCE_M = 0.01
 approach_distance = 0.015
 press_distance = 0.01
 
-# Max tool tilt toward vertical (deg) so the printed sensor holder clears
-# the cone surface below the contact point. Generators scale this with
-# height: 0 near the apex, full value at the lowest touch band.
+"""
+
+Max tool tilt toward vertical (deg) so the printed sensor holder clears
+   the cone surface below the contact point. Generators scale this with
+   height: 0 near the apex, full value at the lowest touch band.
+   
+"""
 MAX_ORIENTATION_TILT_DEG = 15.0
 
 

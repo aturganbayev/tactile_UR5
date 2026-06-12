@@ -69,7 +69,7 @@ def main():
         n = np.array([row["nx"], row["ny"], row["nz"]])
         n = n / np.linalg.norm(n)
         
-        # FIX: Ensure normal always points outward from the cone
+        
         # Some STL files have inconsistent triangle orientations (flipped normals)
         v_out = np.array([p[0] - center_x, p[1] - center_y, 0])
         if np.linalg.norm(v_out) > 1e-5:

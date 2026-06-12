@@ -89,7 +89,7 @@ def main():
     print(f"Saved {len(poses_df)} touch poses  "
           f"({NUM_STRIPS} strips × {NUM_POINTS} points)  →  {output_file}")
 
-    # Plot — each strip gets a distinct colour
+    
     fig = plt.figure(figsize=(12, 9))
     ax = fig.add_subplot(111, projection="3d")
 
