@@ -1,5 +1,3 @@
-
-https://github.com/user-attachments/assets/9ab3cf38-e25d-4496-9133-35944143a262
 # Tactile UR5
 
 Automated tactile exploration of a silicone cone using a UR5 robot arm. The pipeline extracts surface geometry from a CAD model, calibrates it to the robot's coordinate frame via ICP, generates approach/press poses for each surface point, and executes them on the physical (or simulated) robot over a raw URScript TCP socket.
