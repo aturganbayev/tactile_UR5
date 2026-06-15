@@ -220,6 +220,12 @@ Sends a single `movej` command to the home configuration `[0, -π/2, 0, -π/2, 0
 
 ---
 
+## Video demo
+
+_Video to be added._
+
+---
+
 ### Emergency stop
 
 Immediately decelerates and stops the robot (does not require mode selection).
