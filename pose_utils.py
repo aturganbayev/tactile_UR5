@@ -71,7 +71,7 @@ def tilt_normal_toward_vertical(normal, tilt_deg):
 A_sim = 2.5
 A_real = 0.1
 V_sim = 1
-V_real = 0.05
+V_real = 0.2
 
 # Default orientation used when hovering above the cone apex.
 TOOL_TIP_OFFSET = np.array([0.0, 0.0, 0.086])

@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/gifty4/tactile_UR5/cad_env
+set -gx VIRTUAL_ENV /home/gifty4/github_local/tactile_UR5/cad_env
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH

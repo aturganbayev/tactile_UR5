@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV=/home/gifty4/tactile_UR5/cad_env
+VIRTUAL_ENV=/home/gifty4/github_local/tactile_UR5/cad_env
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
