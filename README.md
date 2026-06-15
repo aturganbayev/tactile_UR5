@@ -222,7 +222,13 @@ Sends a single `movej` command to the home configuration `[0, -π/2, 0, -π/2, 0
 
 ## Video demo
 
-_Video to be added._
+
+
+Uploading UR5_tactile_run_side_strip_poses_compressed.mp4…
+
+
+
+
 
 ---
 
