@@ -1,3 +1,5 @@
+
+https://github.com/user-attachments/assets/9ab3cf38-e25d-4496-9133-35944143a262
 # Tactile UR5
 
 Automated tactile exploration of a silicone cone using a UR5 robot arm. The pipeline extracts surface geometry from a CAD model, calibrates it to the robot's coordinate frame via ICP, generates approach/press poses for each surface point, and executes them on the physical (or simulated) robot over a raw URScript TCP socket.
@@ -224,9 +226,8 @@ Sends a single `movej` command to the home configuration `[0, -π/2, 0, -π/2, 0
 
 
 
-Uploading UR5_tactile_run_side_strip_poses_compressed.mp4…
 
-
+https://github.com/user-attachments/assets/784e2b93-5495-4d04-91b1-0145607aa092
 
 
 
