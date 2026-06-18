@@ -100,7 +100,6 @@ class RobotPoseReader(threading.Thread):
         self._lock = threading.Lock()
         self._pose = None          # [x,y,z,rx,ry,rz]
         self._speed = 0.0          # linear TCP speed magnitude (m/s)
-        self._reads = 0            # packets decoded (lets us spot a stalled stream)
         # NB: do not name this "_stop" - that shadows threading.Thread._stop
         # and breaks _after_fork() when multiprocessing forks subprocesses.
         self._stop_event = threading.Event()
@@ -145,7 +144,6 @@ class RobotPoseReader(threading.Thread):
         with self._lock:
             self._pose = pose
             self._speed = speed
-            self._reads += 1
 
     def run(self):
         # Outer loop reconnects on a stalled/closed stream; only a stop() or a
@@ -188,10 +186,6 @@ class RobotPoseReader(threading.Thread):
         with self._lock:
             return (list(self._pose) if self._pose is not None else None,
                     self._speed)
-
-    def read_count(self):
-        with self._lock:
-            return self._reads
 
     def stop(self):
         self._stop_event.set()
@@ -280,8 +274,6 @@ def main():
     press_count = 0
     peak = None          # dict captured at max Fz of the current press
     press_start_t = 0.0
-    dbg_next_t = time.time()   # throttle live-pose debug to ~1 Hz
-    dbg_last_reads = 0
 
     try:
         next_t = time.perf_counter()
@@ -292,18 +284,6 @@ def main():
             if reader.error is not None:
                 raise reader.error
             now = time.time()
-
-            # Live sanity check: shows the pose we're actually logging plus how
-            # many fresh packets the reader decoded in the last second. If the
-            # pose is frozen while the robot is moving, "pkts/s" tells you
-            # whether the stream stalled (0) or the robot just isn't moving.
-            if now >= dbg_next_t and pose is not None:
-                reads = reader.read_count()
-                print(f"  [live] TCP=[{pose[0]:.4f}, {pose[1]:.4f}, {pose[2]:.4f}, "
-                      f"{pose[3]:.4f}, {pose[4]:.4f}, {pose[5]:.4f}]  "
-                      f"speed={speed:.4f}  pkts/s={reads - dbg_last_reads}")
-                dbg_last_reads = reads
-                dbg_next_t = now + 1.0
 
             if pose is not None:
                 traj_w.writerow([f"{now:.6f}", *[f"{p:.6f}" for p in pose],
