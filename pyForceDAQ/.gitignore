@@ -62,7 +62,6 @@ docs/_build/
 data/
 events/
 doc/_build
-calibration/
 expyriment/
 venv/
 *.settings
