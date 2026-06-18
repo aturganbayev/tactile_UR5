@@ -66,6 +66,10 @@ def tilt_normal_toward_vertical(normal, tilt_deg):
     return R.from_rotvec(axis / axis_norm * tilt).apply(normal)
 
 
+# Robot IP addresses for Sim and Real PC
+SIM_HOST = "172.17.0.2"
+REAL_HOST = "192.168.0.110"
+
 # Velocity and Acceleration for Sim and Real Robot (m/s; m/s^2)
 
 A_sim = 2.5
@@ -80,7 +84,7 @@ START_CLEARANCE_M = 0.01
 
 # Approach & press distance m
 approach_distance = 0.015
-press_distance = 0.01
+press_distance = 0.02
 
 """
 

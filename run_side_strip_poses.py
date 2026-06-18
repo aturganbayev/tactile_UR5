@@ -1,8 +1,31 @@
 import socket
 import time
+import numpy as np
 import pandas as pd
 
-from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real
+from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real, SIM_HOST, REAL_HOST
+
+# Extra radial clearance (m) used for the inter-strip transit: push the tool
+# this far outward from the cone surface so the swing to the next strip stays
+# outside the cone instead of routing over the apex.
+TRANSIT_RADIAL_CLEARANCE_M = 0.04
+
+
+def radial_push(pose, nx, ny, dist):
+    """Offset a pose horizontally along its outward normal by dist metres.
+
+    Keeps Z and the rotvec orientation unchanged; only X/Y move outward so
+    the tool retreats radially away from the cone axis.
+    """
+    h = np.array([nx, ny], dtype=float)
+    norm = np.linalg.norm(h)
+    out = list(pose)
+    if norm < 1e-6:
+        return out
+    h /= norm
+    out[0] += h[0] * dist
+    out[1] += h[1] * dist
+    return out
 
 
 def main():
@@ -15,28 +38,25 @@ def main():
 
     mode = input("Select mode ('sim' or 'real'): ").strip().lower()
     if mode == "sim":
-        HOST = "172.17.0.2"
+        HOST = SIM_HOST
         A = A_sim
         V = V_sim
     elif mode == "real":
-        HOST = "192.168.0.153"
+        HOST = REAL_HOST
         A = A_real
         V = V_real
     else:
         print("Invalid mode. Exiting.")
         return
 
-    PORT = 30003
+    # Secondary client interface (30002), NOT realtime (30003): pushing a
+    # `def my_program() ... end` program to 30003 makes the CB2/SW1.8 controller
+    # suspend its 125 Hz state broadcast, freezing record_cone_press.py's pose
+    # reader. 30002 runs the program while 30003 keeps streaming state.
+    PORT = 30002
 
     start_pose = apex_start_tcp_pose(clearance_m=START_CLEARANCE_M)
     start_pose_str = pose_str(start_pose)
-
-    # Via point used between strips: hover well above the apex so the
-    # transit from the bottom of one strip to the top of the next never
-    # sweeps through the cone.
-    VIA_CLEARANCE_M = 0.05
-    via_pose = apex_start_tcp_pose(clearance_m=VIA_CLEARANCE_M)
-    via_pose_str = pose_str(via_pose)
     print(
         f"Start pose: apex TCP + {START_CLEARANCE_M * 1000:.0f} mm in Z -> "
         f"[{start_pose[0]:.6f}, {start_pose[1]:.6f}, {start_pose[2]:.6f}, "
@@ -52,19 +72,32 @@ def main():
     ur_script_lines.append("  sleep(0.5)")
 
     prev_strip = None
+    prev_approach = None
+    prev_normal = None
     for i, (_, row) in enumerate(poses_df.iterrows()):
         approach = [row["approach_x"], row["approach_y"], row["approach_z"],
                     row["approach_rx"], row["approach_ry"], row["approach_rz"]]
         press    = [row["press_x"],    row["press_y"],    row["press_z"],
                     row["press_rx"],   row["press_ry"],   row["press_rz"]]
 
-        # Lift to the apex via point before changing strips so the transit
-        # goes over the cone instead of through it.
+        # Transit between strips at the current height instead of over the
+        # apex: retreat radially from the previous point, swing around to the
+        # new strip's angle (still outside the cone), then approach. Serpentine
+        # ordering keeps these two endpoints at the same band, so the swing is
+        # short.
         strip = int(row["strip"])
         if prev_strip is not None and strip != prev_strip:
-            ur_script_lines.append(f"  movej(get_inverse_kin(p[{via_pose_str}], qnear), a={A}, v={V})")
+            via_prev = radial_push(prev_approach, prev_normal[0], prev_normal[1],
+                                   TRANSIT_RADIAL_CLEARANCE_M)
+            via_next = radial_push(approach, row["nx"], row["ny"],
+                                   TRANSIT_RADIAL_CLEARANCE_M)
+            ur_script_lines.append(f"  movel(p[{pose_str(via_prev)}], a={A}, v={V})")
+            ur_script_lines.append("  sleep(0.5)")
+            ur_script_lines.append(f"  movej(get_inverse_kin(p[{pose_str(via_next)}], qnear), a={A}, v={V})")
             ur_script_lines.append("  sleep(0.5)")
         prev_strip = strip
+        prev_approach = approach
+        prev_normal = (row["nx"], row["ny"])
 
         # Log pose index and IK solution so the failing pose shows in the
         # pendant log (PolyScope -> Log tab) right before a protective stop.

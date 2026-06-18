@@ -1,16 +1,20 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import socket
 import struct
 import threading
 import queue
 import time
 import csv
-import os
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from pose_utils import REAL_HOST
 
 # Constants
 PORT = 30003
-HOST = "192.168.0.153"
+HOST = REAL_HOST
 
 
 def main():

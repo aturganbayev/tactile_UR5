@@ -11,9 +11,9 @@ from pose_utils import (
 )
 
 # --- Parameters ---
-NUM_STRIPS = 6             # number of strips evenly distributed around the cone
-NUM_POINTS = 8            # number of touch points per strip (top → bottom)
-MIN_HEIGHT_FRACTION = 0.6  # lower bound as a fraction of cone height
+NUM_STRIPS = 4             # number of strips evenly distributed around the cone
+NUM_POINTS = 6           # number of touch points per strip (top → bottom)
+MIN_HEIGHT_FRACTION = 0.5  # lower bound as a fraction of cone height
                            # (0.0 = base, 1.0 = apex)
 
 
@@ -44,7 +44,13 @@ def main():
         # Normalise to [-180, 180] to match arctan2 output
         target = (strip_angle_raw + 180) % 360 - 180
 
-        for i in range(NUM_POINTS):
+        # Serpentine path: even strips run top→bottom, odd strips bottom→top,
+        # so the robot continues from where it finished the previous strip.
+        point_order = range(NUM_POINTS)
+        if strip_idx % 2 == 1:
+            point_order = reversed(point_order)
+
+        for i in point_order:
             z_hi, z_lo = z_bins[i], z_bins[i + 1]
             band = df_height[(df_height["z"] <= z_hi) & (df_height["z"] >= z_lo)]
             if len(band) == 0:

@@ -4,17 +4,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import socket
 import time
-from pose_utils import pose_str, A_sim, A_real, V_sim, V_real
+from pose_utils import pose_str, A_sim, A_real, V_sim, V_real, SIM_HOST, REAL_HOST
 
 
 def main():
     mode = input("Select mode ('sim' or 'real'): ").strip().lower()
     if mode == "sim":
-        HOST = "172.17.0.2"
+        HOST = SIM_HOST
         A = A_sim
         V = V_sim
     elif mode == "real":
-        HOST = "192.168.0.153"
+        HOST = REAL_HOST
         A = A_real
         V = V_real
     else:

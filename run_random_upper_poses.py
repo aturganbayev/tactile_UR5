@@ -2,7 +2,7 @@ import socket
 import time
 import pandas as pd
 
-from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real
+from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real, SIM_HOST, REAL_HOST
 
 
 
@@ -16,19 +16,23 @@ def main():
 
     mode = input("Select mode ('sim' or 'real'): ").strip().lower()
     if mode == "sim":
-        HOST = "172.17.0.2"
+        HOST = SIM_HOST
         A = A_sim
         V = V_sim
     elif mode == "real":
-        HOST = "192.168.0.153"
+        HOST = REAL_HOST
         A = A_real
         V = V_real
     else:
         print("Invalid mode. Exiting.")
         return
 
-    PORT = 30003
-    
+    # Secondary client interface (30002), NOT realtime (30003): pushing a
+    # `def my_program() ... end` program to 30003 makes the CB2/SW1.8 controller
+    # suspend its 125 Hz state broadcast, freezing record_cone_press.py's pose
+    # reader. 30002 runs the program while 30003 keeps streaming state.
+    PORT = 30002
+
     start_pose = apex_start_tcp_pose(clearance_m=START_CLEARANCE_M)
     start_pose_str = pose_str(start_pose)
     print(

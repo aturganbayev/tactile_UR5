@@ -36,29 +36,33 @@ def main():
         print("Error: no points left after Y filter. Increase MAX_Y_OFFSET_M.")
         return
 
-    angles = np.arctan2(df_upper["y"] - center_y, df_upper["x"] - center_x)
-    df_upper["angle"] = angles
+    # The Y-band cuts a thin cross-section slice through the apex, so the
+    # points already lie along the cone's profile curve. Spread the picks
+    # evenly along that curve by binning on x (horizontal position across the
+    # slice) instead of polar angle, which would collapse onto the apex.
+    df_upper["y_dist"] = y_offset.loc[df_upper.index]
 
-    bins = np.linspace(-np.pi, np.pi, NUM_POINTS + 1)
-    df_upper["bin"] = pd.cut(df_upper["angle"], bins, labels=False, include_lowest=True)
+    bins = np.linspace(df_upper["x"].min(), df_upper["x"].max(), NUM_POINTS + 1)
+    df_upper["bin"] = pd.cut(df_upper["x"], bins, labels=False, include_lowest=True)
 
     selected_points = []
     for i in range(NUM_POINTS):
         bin_points = df_upper[df_upper["bin"] == i]
         if len(bin_points) == 0:
             continue
-        # Prefer points nearer the apex Y row within each bin.
-        bin_points = bin_points.assign(y_dist=y_offset.loc[bin_points.index])
-        closest = bin_points["y_dist"].min()
-        bin_points = bin_points[bin_points["y_dist"] <= closest + 1e-9]
-        selected_points.append(bin_points.sample(n=1).iloc[0])
+        # Pick the point nearest the apex-Y plane so picks stay on the curve.
+        selected_points.append(bin_points.loc[bin_points["y_dist"].idxmin()])
 
     selected_df = pd.DataFrame(selected_points)
+    selected_df = selected_df.sort_values("x").reset_index(drop=True)
 
-    print(f"Selected {len(selected_df)} random points (Y-limited, spread by angle).")
+    print(f"Selected {len(selected_df)} points spread along the slice curve.")
     for _, row in selected_df.iterrows():
         dy_mm = abs(row["y"] - center_y) * 1000
-        print(f"  angle={np.degrees(row['angle']):.1f} deg, |dy|={dy_mm:.1f} mm")
+        print(
+            f"  x={row['x'] * 1000:.1f} mm, z={row['z'] * 1000:.1f} mm, "
+            f"|dy|={dy_mm:.1f} mm"
+        )
     
     # Generate touch poses
 
