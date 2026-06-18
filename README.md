@@ -1,9 +1,9 @@
 # Tactile UR5
 
-Automated tactile exploration of a silicone cone using a UR5 robot arm. The pipeline extracts surface geometry from a CAD model, calibrates it to the robot's coordinate frame via ICP, generates approach/press poses for each surface point, and executes them on the physical (or simulated) robot over a raw URScript TCP socket.
+Automated tactile exploration of a silicone cone using a UR5 robot arm. The pipeline extracts surface geometry from a CAD model, calibrates it to the robot's coordinate frame via ICP, generates approach/press poses for each surface point, executes them on the physical (or simulated) robot over a raw URScript TCP socket, and records the contact force (ATI Nano17) synchronized with the TCP pose for each press.
 
 ```
-cone.STL → surface points → ICP calibration → touch poses → robot execution
+cone.STL → surface points → ICP calibration → touch poses → robot execution → force+pose recording
 ```
 
 ---
@@ -15,9 +15,11 @@ cone.STL → surface points → ICP calibration → touch poses → robot execut
 | Robot | Universal Robots UR5 |
 | Tool | Silicone cone tactile sensor |
 | Tool tip offset | 86 mm along TCP +Z axis |
-| Real robot IP | `192.168.0.153` |
+| Force sensor | ATI Nano17 (SI-50-0.5), serial `FT12876` |
+| Force DAQ | NI-DAQ, read via pyForceDAQ (`nidaqmx` backend) |
+| Real robot IP | `192.168.0.110` (set as `REAL_HOST` in `pose_utils.py`) |
 | Simulation IP | `172.17.0.2` (URSim Docker) |
-| Communication port | `30003` (URScript primary interface) |
+| Communication port | `30003` (URScript command + 125 Hz robot-state stream) |
 
 ---
 
@@ -220,6 +222,61 @@ Sends a single `movej` command to the home configuration `[0, -π/2, 0, -π/2, 0
 
 ---
 
+## Force + pose data collection (pyForceDAQ)
+
+Records ATI Nano17 force synchronized with the UR5 TCP pose while the robot presses the cone. Each press is auto-detected from the force signal, and its **peak force** is logged together with the TCP pose at that instant. The recorder runs on the PC the NI-DAQ is connected to, in parallel with any of the `run_*.py` motion scripts.
+
+Force comes from the Nano17 (far more accurate than the robot's built-in TCP-force estimate); the TCP pose is read from the UR real-time stream on port `30003`. Both are sampled in one loop so they share a single timestamp.
+
+### One-time setup (on the DAQ PC)
+
+```bash
+# 1. Build and install the ATI calibration C library
+cd pyForceDAQ/atidaq_cdll && make atidaq.so
+sudo cp atidaq.so /usr/lib/atidaq.so
+
+# 2. Install the NI-DAQ Python backend (requires the NI-DAQmx driver)
+pip install nidaqmx
+```
+
+The sensor calibration file `pyForceDAQ/calibration/FT12876.cal` (the Nano17) is tracked in git, so a fresh checkout already has it. If your transducer has a different serial, drop its ATI `.cal` into `pyForceDAQ/calibration/` and update `SENSOR_NAME` in `record_cone_press.py`.
+
+### Record
+
+Two terminals on the DAQ PC:
+
+```bash
+# Terminal 1 — recorder (choose 'real'; keep hands off the sensor during bias)
+cd pyForceDAQ
+python3 record_cone_press.py
+
+# Terminal 2 — motion that presses the cone
+python3 run_random_upper_poses.py     # or run_side_strip_poses.py
+```
+
+Each detected press prints live (`Press N: peak Fz = … at TCP=[…]`). Press `Ctrl-C` to stop the recorder once the motion finishes. Outputs are written to `pyForceDAQ/cone_data/`, timestamped per session:
+
+| File | Contents |
+|---|---|
+| `<ts>_trajectory.csv` | Continuous `t, x,y,z,rx,ry,rz, speed, Fx,Fy,Fz, Fmag` (~125 Hz) |
+| `<ts>_presses.csv` | One row per detected press: peak `Fz` / `\|F\|` and the TCP pose at the peak |
+| `<ts>.csv.gz` | Raw full-rate force from pyForceDAQ (backup) |
+
+Detection thresholds and loop rate are constants at the top of `record_cone_press.py` (defaults: press starts at `0.5 N`, ends at `0.3 N`, 125 Hz). If `Fz` reads negative during contact, flip the threshold signs (the `reverse_parameter_names="Fz"` setting normally makes a press positive).
+
+### Sync recordings to the workstation
+
+`sync_cone_data.sh` copies recordings from the DAQ PC (mounted via sshfs at `~/remote-server`) into this repo's `cone_data/`. Run it on the workstation:
+
+```bash
+~/github_local/tactile_UR5/pyForceDAQ/sync_cone_data.sh          # one-shot copy
+~/github_local/tactile_UR5/pyForceDAQ/sync_cone_data.sh --watch  # auto-copy every 10s
+```
+
+Copy is the default (originals kept; safe to run while a session is recording). `--watch [SECS]` polls on an interval; `--move` deletes the source files after copying. Recordings (`*.csv`, `*.csv.gz`) are gitignored.
+
+---
+
 ## Video demo
 
 
@@ -239,7 +296,7 @@ Immediately decelerates and stops the robot (does not require mode selection).
 python movement_scripts/stop_robot.py
 ```
 
-Sends `stopl(1.2)` directly to the real robot at `192.168.0.153`.
+Sends `stopl(2.5)` directly to the real robot (`REAL_HOST` in `pose_utils.py`, `192.168.0.110`).
 
 ---
 
@@ -264,6 +321,9 @@ Sends `stopl(1.2)` directly to the real robot at `192.168.0.153`.
 | `movement_scripts/start_pose.py` | Move robot directly to start pose |
 | `movement_scripts/go_home.py` | Return robot to home configuration |
 | `movement_scripts/stop_robot.py` | Emergency stop |
+| `pyForceDAQ/record_cone_press.py` | Record Nano17 force + UR5 TCP pose; auto-detect each press and log its peak force with the pose at that instant |
+| `pyForceDAQ/sync_cone_data.sh` | Copy recordings from the remote DAQ PC (sshfs mount) into the local repo |
+| `pyForceDAQ/calibration/` | ATI sensor calibration files (`FT12876` = Nano17, `FT12877`) |
 | `surface_points.csv` | Raw STL surface points (mm, STL frame) |
 | `surface_points_base.csv` | Surface points in robot base frame (m) |
 | `physical_points.csv` | Recorded physical touch points from teach pendant |
@@ -273,6 +333,7 @@ Sends `stopl(1.2)` directly to the real robot at `192.168.0.153`.
 | `cone_touch_poses.csv` | Side strip touch poses (with strip index and tilt per pose) |
 | `figures/` | Saved plot outputs |
 | `robot_data/` | Directory for robot execution logs and recorded data |
+| `pyForceDAQ/cone_data/` | Force + pose recordings (per-session trajectory and per-press CSVs; gitignored) |
 | `cad_env/` | Python virtual environment |
 
 ---
@@ -295,4 +356,7 @@ Defined in `pose_utils.py` and the generator scripts:
 | Upper zone threshold | top 25 % of cone height | `generate_random_upper_poses.py` |
 | Number of strips | `4` (evenly around the cone) | `generate_side_strip_poses.py` |
 | Side strip lower bound | `0.6` (60 % from base) | `generate_side_strip_poses.py` |
+| Press detect threshold | `0.5` N on / `0.3` N off | `pyForceDAQ/record_cone_press.py` |
+| Force sample / log rate | `125` Hz | `pyForceDAQ/record_cone_press.py` |
+| Force sensor | `FT12876` (Nano17) | `pyForceDAQ/record_cone_press.py` |
 

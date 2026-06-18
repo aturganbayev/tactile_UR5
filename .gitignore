@@ -11,4 +11,5 @@ figures/side_strip_touch_poses.png
 figures/cone_touch_poses.png
 # Generated data files
 *.csv
+*.csv.gz
 !physical_points.csv
