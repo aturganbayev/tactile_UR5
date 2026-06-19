@@ -16,7 +16,7 @@ from pose_utils import (
 
 # --- Parameters ---
 NUM_STRIPS = 4             # number of strips evenly distributed around the cone
-NUM_POINTS = 3           # number of touch points per strip (top → bottom)
+NUM_POINTS = 4           # number of touch points per strip (top → bottom)
 MIN_HEIGHT_FRACTION = 0.6  # lower bound as a fraction of cone height
                            # (0.0 = base, 1.0 = apex)
 

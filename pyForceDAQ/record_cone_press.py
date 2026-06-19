@@ -32,14 +32,13 @@ from time import strftime, localtime
 
 from forceDAQ.force.data_recorder import DataRecorder
 from forceDAQ.force.sensor import SensorSettings
+from pose_utils import SIM_HOST, REAL_HOST
 
 # --------------------------------------------------------------------------- #
 #                                  SETTINGS                                    #
 # --------------------------------------------------------------------------- #
 
 # Robot real-time interface
-SIM_HOST = "172.17.0.2"
-REAL_HOST = "192.168.0.110"
 ROBOT_PORT = 30003
 # On CB2/SW1.8 port 30003 is also the URScript command port, so a motion
 # script writing to it can stall the state broadcast. If no packet arrives
