@@ -26,12 +26,15 @@ import math
 import os
 import socket
 import struct
+import sys
 import threading
 import time
 from time import strftime, localtime
 
 from forceDAQ.force.data_recorder import DataRecorder
 from forceDAQ.force.sensor import SensorSettings
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pose_utils import SIM_HOST, REAL_HOST
 
 # --------------------------------------------------------------------------- #
