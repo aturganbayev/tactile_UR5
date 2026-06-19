@@ -385,8 +385,10 @@ Defined in `pose_utils.py` and the generator scripts:
 | Approach stand-off | `0.015` m | `pose_utils.py` |
 | Press depth | `0.01` m | `pose_utils.py` |
 | Max orientation tilt | `15°` (scaled with height) | `pose_utils.py` |
-| Sim speed / acceleration | `V_sim = 1` m/s, `A_sim = 2.5` m/s² | `pose_utils.py` |
-| Real speed / acceleration | `V_real = 0.05` m/s, `A_real = 0.1` m/s² | `pose_utils.py` |
+| Sim transit speed / accel | `V_sim = 1` m/s, `A_sim = 2.5` m/s² | `pose_utils.py` |
+| Real transit speed / accel | `V_real = 0.5` m/s, `A_real = 0.3` m/s² | `pose_utils.py` |
+| Real approach (contact) speed / accel | `V_approach_real = 0.05` m/s, `A_approach_real = 0.1` m/s² | `pose_utils.py` |
+| Sim approach (contact) speed / accel | `V_approach_sim = 0.25` m/s, `A_approach_sim = 1.0` m/s² | `pose_utils.py` |
 | Inter-strip via clearance | `0.05` m above apex | `execution/run_side_strip_poses.py` |
 | Upper zone threshold | top 25 % of cone height | `pose_generation/generate_random_upper_poses.py` |
 | Number of strips | `4` (evenly around the cone) | `pose_generation/generate_side_strip_poses.py` |

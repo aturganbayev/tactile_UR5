@@ -8,7 +8,10 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import paths
-from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real, SIM_HOST, REAL_HOST
+from pose_utils import (START_CLEARANCE_M, apex_start_tcp_pose, pose_str,
+                        A_sim, A_real, V_sim, V_real,
+                        A_approach_sim, A_approach_real, V_approach_sim, V_approach_real,
+                        SIM_HOST, REAL_HOST)
 
 # Extra radial clearance (m) used for the inter-strip transit: push the tool
 # this far outward from the cone surface so the swing to the next strip stays
@@ -44,12 +47,12 @@ def main():
     mode = input("Select mode ('sim' or 'real'): ").strip().lower()
     if mode == "sim":
         HOST = SIM_HOST
-        A = A_sim
-        V = V_sim
+        A, V = A_sim, V_sim                       # fast transit
+        A_app, V_app = A_approach_sim, V_approach_sim   # slow contact
     elif mode == "real":
         HOST = REAL_HOST
-        A = A_real
-        V = V_real
+        A, V = A_real, V_real
+        A_app, V_app = A_approach_real, V_approach_real
     else:
         print("Invalid mode. Exiting.")
         return
@@ -115,10 +118,11 @@ def main():
         # strips wrap around the cone, eventually hitting joint limits.)
         ur_script_lines.append(f"  movej(q, a={A}, v={V})")
         ur_script_lines.append("  sleep(0.5)")
-        # Press and retract in Cartesian (short, controlled linear motion)
-        ur_script_lines.append(f"  movel(p[{pose_str(press)}], a={A}, v={V})")
+        # Press and retract in Cartesian at the slow contact speed so the tool
+        # eases onto the cone instead of knocking it away.
+        ur_script_lines.append(f"  movel(p[{pose_str(press)}], a={A_app}, v={V_app})")
         ur_script_lines.append("  sleep(0.5)")
-        ur_script_lines.append(f"  movel(p[{pose_str(approach)}], a={A}, v={V})")
+        ur_script_lines.append(f"  movel(p[{pose_str(approach)}], a={A_app}, v={V_app})")
         ur_script_lines.append("  sleep(0.5)")
 
     # Return to start pose

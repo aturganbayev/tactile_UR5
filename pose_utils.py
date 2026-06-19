@@ -78,11 +78,19 @@ SIM_HOST = "172.17.0.2"
 REAL_HOST = "192.168.0.110"
 
 # Velocity and Acceleration for Sim and Real Robot (m/s; m/s^2)
-
+# Transit speed (free-space moves between touch points). Can be fast.
 A_sim = 2.5
-A_real = 0.1
+A_real = 0.3
 V_sim = 1
-V_real = 0.2
+V_real = 0.5
+
+# Approach/contact speed: used only for the short press-into-surface and retract
+# moves. Kept slow so the tool eases onto the cone instead of knocking it away.
+# Tune V_approach_real down if the cone still shifts on contact.
+A_approach_sim = 1.0
+A_approach_real = 0.1
+V_approach_sim = 0.25
+V_approach_real = 0.05
 
 # Default orientation used when hovering above the cone apex.
 TOOL_TIP_OFFSET = np.array([0.0, 0.0, 0.086])

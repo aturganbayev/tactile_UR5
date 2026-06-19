@@ -55,6 +55,11 @@ BIAS_SAMPLES = 500
 PRESS_ON_N = 0.5           # Fz rising above this starts a press
 PRESS_OFF_N = 0.3          # Fz falling below this ends the press
 MIN_PRESS_DURATION_S = 0.05  # ignore shorter blips as noise
+# After a press ends, ignore new presses for this long. As the robot retracts
+# it rebounds slightly, which can re-cross PRESS_ON and register a phantom
+# second press; real presses are several seconds apart (move + settle between
+# touch points), so this window removes rebounds without dropping real presses.
+PRESS_REFRACTORY_S = 2.0
 
 # Logging loop rate (the UR stream is ~125 Hz)
 LOOP_HZ = 125
@@ -274,6 +279,7 @@ def main():
     press_count = 0
     peak = None          # dict captured at max Fz of the current press
     press_start_t = 0.0
+    last_press_end_t = 0.0   # for the refractory window
 
     try:
         next_t = time.perf_counter()
@@ -293,7 +299,7 @@ def main():
 
             # --- press state machine (on Fz) ------------------------------- #
             if not in_press:
-                if fz >= PRESS_ON_N:
+                if fz >= PRESS_ON_N and (now - last_press_end_t) >= PRESS_REFRACTORY_S:
                     in_press = True
                     press_start_t = now
                     peak = {"fz": fz, "f": (fx, fy, fz), "fmag": fmag,
@@ -315,6 +321,7 @@ def main():
                               f"(|F| = {peak['fmag']:.2f} N) at "
                               f"TCP=[{p[0]:.4f}, {p[1]:.4f}, {p[2]:.4f}]")
                     in_press = False
+                    last_press_end_t = now
                     peak = None
 
             # pace the loop
