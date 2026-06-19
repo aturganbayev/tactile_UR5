@@ -1,6 +1,0 @@
-#!/home/gifty4/github_local/tactile_UR5/cad_env/bin/python3
-import sys
-from fontTools.ttx import main
-if __name__ == '__main__':
-    sys.argv[0] = sys.argv[0].removesuffix('.exe')
-    sys.exit(main())

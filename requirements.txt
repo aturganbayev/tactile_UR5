@@ -1,0 +1,13 @@
+# Workstation pipeline (geometry, calibration, pose generation, plots, execution)
+# Recreate the venv with:
+#   python3 -m venv cad_env && source cad_env/bin/activate && pip install -r requirements.txt
+trimesh==4.12.2
+numpy==1.24.4
+scipy==1.15.3
+pandas==2.3.3
+matplotlib==3.10.9
+
+# DAQ PC only (force + pose recording in pyForceDAQ/). Also needs the NI-DAQmx
+# system driver installed separately, and atidaq.so built from pyForceDAQ/atidaq_cdll/.
+# nidaqmx
+# psutil

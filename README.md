@@ -25,12 +25,47 @@ cone.STL → surface points → ICP calibration → touch poses → robot execut
 
 ## Setup
 
-```bash
-# Activate the virtual environment
-source cad_env/bin/activate
+The workstation dependencies are pinned in `requirements.txt`. The `cad_env/`
+virtualenv is **not** tracked in git — recreate it from the requirements file:
 
-# Or install dependencies manually
-pip install trimesh numpy pandas scipy matplotlib
+```bash
+# Create and activate the virtualenv, then install dependencies
+python3 -m venv cad_env
+source cad_env/bin/activate
+pip install -r requirements.txt
+```
+
+On later sessions just activate it:
+
+```bash
+source cad_env/bin/activate
+```
+
+**DAQ PC only** — the force + pose recorder in `pyForceDAQ/` additionally needs
+`nidaqmx` and `psutil` (uncomment them in `requirements.txt`), the NI-DAQmx
+system driver, and `atidaq.so` built from `pyForceDAQ/atidaq_cdll/`. See the
+[Force + pose data collection](#force--pose-data-collection-pyforcedaq) section.
+
+---
+
+## Project structure
+
+Scripts are grouped by pipeline stage. Every script resolves data files through
+`paths.py`, so they can be run from any working directory (e.g.
+`python pose_generation/generate_touch_poses.py` from the repo root).
+
+```
+tactile_UR5/
+├── paths.py              # central path config (single source of truth)
+├── pose_utils.py         # shared geometry + motion parameters
+├── geometry/             # extract_points.py  (STL → surface points)
+├── ur_calibration/       # ICP calibration scripts + their artifacts
+├── pose_generation/      # generate_*.py  (surface points → touch poses)
+├── execution/            # run_*.py + robot move/stop scripts
+├── cone_plots/           # point-cloud / normals visualisation
+├── pyForceDAQ/           # force + pose recording (ATI Nano17)
+├── data/                 # cone.STL + generated pose CSVs
+└── figures/              # plot outputs
 ```
 
 ---
@@ -42,11 +77,11 @@ pip install trimesh numpy pandas scipy matplotlib
 Samples 3000 points (with surface normals) from the cone CAD model.
 
 ```bash
-python extract_points.py
+python geometry/extract_points.py
 ```
 
-**Input:** `cone.STL`  
-**Output:** `surface_points.csv` — columns: `x, y, z, nx, ny, nz` (in mm, STL frame)
+**Input:** `data/cone.STL`  
+**Output:** `data/surface_points.csv` — columns: `x, y, z, nx, ny, nz` (in mm, STL frame)
 
 ---
 
@@ -54,10 +89,10 @@ python extract_points.py
 
 ```bash
 # Plot sampled surface points
-python cone_plot.py
+python cone_plots/cone_plot.py
 
 # Plot surface points with corrected outward normals
-python cone_plot_normals.py
+python cone_plots/cone_plot_normals.py
 ```
 
 **Outputs:** `figures/surface__points_cone_plot.png`, `figures/surface__points_cone_normals_plot.png`
@@ -73,7 +108,7 @@ python cone_plot_normals.py
 Interactive CLI. Move the robot so the sensor tip physically touches the cone and read the TCP pose from the teach pendant for each point.
 
 ```bash
-python record_icp_points.py
+python ur_calibration/record_icp_points.py
 ```
 
 - **Point 1 must be the cone apex** (top).
@@ -81,7 +116,7 @@ python record_icp_points.py
 - Enter each pose as `x y z rx ry rz` (mm or m — auto-detected; radians for rotation).
 - Type `done` when finished.
 
-**Output:** `physical_points.csv` — columns: `x_tcp, y_tcp, z_tcp, rx, ry, rz, x, y, z`
+**Output:** `ur_calibration/physical_points.csv` — columns: `x_tcp, y_tcp, z_tcp, rx, ry, rz, x, y, z`
 
 ---
 
@@ -90,13 +125,13 @@ python record_icp_points.py
 Aligns the STL point cloud to the robot base frame using the physical touch points as ground truth.
 
 ```bash
-python calibrate_icp.py
+python ur_calibration/calibrate_icp.py
 ```
 
-**Inputs:** `surface_points.csv`, `physical_points.csv`, `cone.STL`  
+**Inputs:** `data/surface_points.csv`, `ur_calibration/physical_points.csv`, `data/cone.STL`  
 **Outputs:**
-- `icp_transformation_matrix.txt` — 4×4 STL-to-robot transform
-- `surface_points_base.csv` — surface points (with normals) in robot base frame (meters)
+- `ur_calibration/icp_transformation_matrix.txt` — 4×4 STL-to-robot transform
+- `ur_calibration/surface_points_base.csv` — surface points (with normals) in robot base frame (meters)
 
 Calibration quality (mean/RMS/max error in mm) is printed on completion. Target: mean error < 5 mm.
 
@@ -107,11 +142,11 @@ Calibration quality (mean/RMS/max error in mm) is printed on completion. Target:
 Re-checks alignment by projecting recorded physical contact points onto the calibrated mesh.
 
 ```bash
-python validate_calibration.py
+python ur_calibration/validate_calibration.py
 ```
 
-**Inputs:** `physical_points.csv`, `icp_transformation_matrix.txt`, `surface_points_base.csv`  
-Re-run `calibrate_icp.py` if mean error exceeds 5 mm.
+**Inputs:** `ur_calibration/physical_points.csv`, `ur_calibration/icp_transformation_matrix.txt`, `ur_calibration/surface_points_base.csv`  
+Re-run `ur_calibration/calibrate_icp.py` if mean error exceeds 5 mm.
 
 ---
 
@@ -121,23 +156,23 @@ Three options depending on the experiment scope:
 
 #### 6a — Full surface coverage
 
-Generates approach and press TCP poses for every point in `surface_points_base.csv`.
+Generates approach and press TCP poses for every point in `ur_calibration/surface_points_base.csv`.
 
 ```bash
-python generate_touch_poses.py
+python pose_generation/generate_touch_poses.py
 ```
 
-**Output:** `touch_poses.csv`
+**Output:** `data/touch_poses.csv`
 
 #### 6b — Random upper-surface poses
 
 Selects `NUM_POINTS` points (default: 5) from the upper quarter of the cone, spread evenly by angle and filtered to within `MAX_Y_OFFSET_M` of the apex Y row.
 
 ```bash
-python generate_random_upper_poses.py
+python pose_generation/generate_random_upper_poses.py
 ```
 
-**Output:** `random_upper_touch_poses.csv`, `figures/random_upper_points_plot.png`
+**Output:** `data/random_upper_touch_poses.csv`, `figures/random_upper_points_plot.png`
 
 ![Random upper touch poses](figures/example_random_upper_points_plot.png)
 
@@ -148,10 +183,10 @@ Generates `NUM_STRIPS` vertical strips evenly distributed around the cone, each 
 To keep the printed sensor holder clear of the cone surface at lower touch points, the tool orientation is tilted toward vertical with height-scaled magnitude: 0° at the apex band up to `MAX_ORIENTATION_TILT_DEG` (15°) at the lowest band. Only the orientation tilts — the contact point and press direction stay on the true surface normal. The applied tilt is recorded per pose in the `tilt_deg` CSV column.
 
 ```bash
-python generate_side_strip_poses.py
+python pose_generation/generate_side_strip_poses.py
 ```
 
-**Output:** `cone_touch_poses.csv` (with `strip` and `strip_angle_deg` columns), `figures/cone_touch_poses.png`
+**Output:** `data/cone_touch_poses.csv` (with `strip` and `strip_angle_deg` columns), `figures/cone_touch_poses.png`
 
 ![Cone touch poses](figures/example_cone_touch_poses.png)
 
@@ -172,7 +207,7 @@ Each row in all pose CSVs contains a paired approach pose (15 mm stand-off along
 Moves the robot from the home configuration through a safe pre-pose to the hover position directly above the cone apex (10 mm clearance).
 
 ```bash
-python movement_scripts/home_start.py
+python execution/home_start.py
 ```
 
 Prompts for `sim` or `real` mode. Motion sequence:
@@ -186,7 +221,7 @@ Home joints [0, -π/2, 0, -π/2, 0, 0]
 To move directly to the start pose only (skipping the pre-pose joint move):
 
 ```bash
-python movement_scripts/start_pose.py
+python execution/start_pose.py
 ```
 
 ---
@@ -197,13 +232,13 @@ Streams the full URScript program to the robot. For each pose: transit to approa
 
 ```bash
 # Run random upper-surface poses (from step 6b)
-python run_random_upper_poses.py
+python execution/run_random_upper_poses.py
 
 # Run side strip poses (from step 6c)
-python run_side_strip_poses.py
+python execution/run_side_strip_poses.py
 ```
 
-Motion strategy (`run_side_strip_poses.py`):
+Motion strategy (`execution/run_side_strip_poses.py`):
 
 - **Transits use `movej(get_inverse_kin(pose, qnear))`** — joint-space interpolation avoids the wrist/shoulder singularities that `movel` transits can pass through. Every IK call is biased toward a fixed safe reference configuration (`qnear`, the pre-pose) so solutions stay in the same branch and never wind up toward joint limits as the strips wrap around the cone.
 - **Press and retract use `movel`** — short, controlled linear motion along the surface normal.
@@ -215,7 +250,7 @@ Motion strategy (`run_side_strip_poses.py`):
 ### Step 9 — Return to home
 
 ```bash
-python movement_scripts/go_home.py
+python execution/go_home.py
 ```
 
 Sends a single `movej` command to the home configuration `[0, -π/2, 0, -π/2, 0, 0]`.
@@ -251,7 +286,7 @@ cd pyForceDAQ
 python3 record_cone_press.py
 
 # Terminal 2 — motion that presses the cone
-python3 run_random_upper_poses.py     # or run_side_strip_poses.py
+python3 execution/run_random_upper_poses.py # or execution/run_side_strip_poses.py
 ```
 
 Each detected press prints live (`Press N: peak Fz = … at TCP=[…]`). Press `Ctrl-C` to stop the recorder once the motion finishes. Outputs are written to `pyForceDAQ/cone_data/`, timestamped per session:
@@ -292,7 +327,7 @@ https://github.com/user-attachments/assets/784e2b93-5495-4d04-91b1-0145607aa092
 Immediately decelerates and stops the robot (does not require mode selection).
 
 ```bash
-python movement_scripts/stop_robot.py
+python execution/stop_robot.py
 ```
 
 Sends `stopl(2.5)` directly to the real robot (`REAL_HOST` in `pose_utils.py`, `192.168.0.110`).
@@ -303,35 +338,36 @@ Sends `stopl(2.5)` directly to the real robot (`REAL_HOST` in `pose_utils.py`, `
 
 | File | Description |
 |---|---|
-| `cone.STL` | CAD model of the silicone cone tool |
+| `requirements.txt` | Pinned workstation dependencies; recreate the venv with `pip install -r requirements.txt` |
+| `paths.py` | Central path config — absolute locations of all data files; imported by every script |
 | `pose_utils.py` | Geometry helpers (TCP↔contact conversion, normal→rotation vector, orientation tilt) and shared motion parameters (speeds, distances) |
-| `extract_points.py` | Sample surface points and normals from STL |
-| `cone_plot.py` | Visualise sampled surface point cloud |
-| `cone_plot_normals.py` | Visualise surface points with corrected outward normals |
-| `record_icp_points.py` | Interactively record physical touch points from the teach pendant |
-| `calibrate_icp.py` | ICP alignment of STL to robot base frame |
-| `validate_calibration.py` | Verify calibration quality against recorded points |
-| `generate_touch_poses.py` | Generate approach/press poses for the full surface |
-| `generate_random_upper_poses.py` | Generate poses for random upper-surface points |
-| `generate_side_strip_poses.py` | Generate poses for multiple strips around the cone, top to bottom |
-| `run_random_upper_poses.py` | Execute upper-surface touch sequence on the robot |
-| `run_side_strip_poses.py` | Execute side strip touch sequence on the robot |
-| `movement_scripts/home_start.py` | Move robot home → pre-pose → start pose |
-| `movement_scripts/start_pose.py` | Move robot directly to start pose |
-| `movement_scripts/go_home.py` | Return robot to home configuration |
-| `movement_scripts/stop_robot.py` | Emergency stop |
+| `data/cone.STL` | CAD model of the silicone cone tool |
+| `geometry/extract_points.py` | Sample surface points and normals from STL |
+| `cone_plots/cone_plot.py` | Visualise sampled surface point cloud |
+| `cone_plots/cone_plot_normals.py` | Visualise surface points with corrected outward normals |
+| `ur_calibration/record_icp_points.py` | Interactively record physical touch points from the teach pendant |
+| `ur_calibration/calibrate_icp.py` | ICP alignment of STL to robot base frame |
+| `ur_calibration/validate_calibration.py` | Verify calibration quality against recorded points |
+| `pose_generation/generate_touch_poses.py` | Generate approach/press poses for the full surface |
+| `pose_generation/generate_random_upper_poses.py` | Generate poses for random upper-surface points |
+| `pose_generation/generate_side_strip_poses.py` | Generate poses for multiple strips around the cone, top to bottom |
+| `execution/run_random_upper_poses.py` | Execute upper-surface touch sequence on the robot |
+| `execution/run_side_strip_poses.py` | Execute side strip touch sequence on the robot |
+| `execution/home_start.py` | Move robot home → pre-pose → start pose |
+| `execution/start_pose.py` | Move robot directly to start pose |
+| `execution/go_home.py` | Return robot to home configuration |
+| `execution/stop_robot.py` | Emergency stop |
 | `pyForceDAQ/record_cone_press.py` | Record Nano17 force + UR5 TCP pose; auto-detect each press and log its peak force with the pose at that instant |
 | `pyForceDAQ/sync_cone_data.sh` | Copy recordings from the remote DAQ PC (sshfs mount) into the local repo |
 | `pyForceDAQ/calibration/` | ATI sensor calibration files (`FT12876` = Nano17, `FT12877`) |
-| `surface_points.csv` | Raw STL surface points (mm, STL frame) |
-| `surface_points_base.csv` | Surface points in robot base frame (m) |
-| `physical_points.csv` | Recorded physical touch points from teach pendant |
-| `icp_transformation_matrix.txt` | 4×4 STL-to-robot transform from ICP |
-| `touch_poses.csv` | Full-surface touch poses |
-| `random_upper_touch_poses.csv` | Random upper-surface touch poses |
-| `cone_touch_poses.csv` | Side strip touch poses (with strip index and tilt per pose) |
+| `data/surface_points.csv` | Raw STL surface points (mm, STL frame) |
+| `ur_calibration/surface_points_base.csv` | Surface points in robot base frame (m) |
+| `ur_calibration/physical_points.csv` | Recorded physical touch points from teach pendant |
+| `ur_calibration/icp_transformation_matrix.txt` | 4×4 STL-to-robot transform from ICP |
+| `data/touch_poses.csv` | Full-surface touch poses |
+| `data/random_upper_touch_poses.csv` | Random upper-surface touch poses |
+| `data/cone_touch_poses.csv` | Side strip touch poses (with strip index and tilt per pose) |
 | `figures/` | Saved plot outputs |
-| `robot_data/` | Directory for robot execution logs and recorded data |
 | `pyForceDAQ/cone_data/` | Force + pose recordings (per-session trajectory and per-press CSVs; gitignored) |
 | `cad_env/` | Python virtual environment |
 
@@ -351,10 +387,10 @@ Defined in `pose_utils.py` and the generator scripts:
 | Max orientation tilt | `15°` (scaled with height) | `pose_utils.py` |
 | Sim speed / acceleration | `V_sim = 1` m/s, `A_sim = 2.5` m/s² | `pose_utils.py` |
 | Real speed / acceleration | `V_real = 0.05` m/s, `A_real = 0.1` m/s² | `pose_utils.py` |
-| Inter-strip via clearance | `0.05` m above apex | `run_side_strip_poses.py` |
-| Upper zone threshold | top 25 % of cone height | `generate_random_upper_poses.py` |
-| Number of strips | `4` (evenly around the cone) | `generate_side_strip_poses.py` |
-| Side strip lower bound | `0.6` (60 % from base) | `generate_side_strip_poses.py` |
+| Inter-strip via clearance | `0.05` m above apex | `execution/run_side_strip_poses.py` |
+| Upper zone threshold | top 25 % of cone height | `pose_generation/generate_random_upper_poses.py` |
+| Number of strips | `4` (evenly around the cone) | `pose_generation/generate_side_strip_poses.py` |
+| Side strip lower bound | `0.6` (60 % from base) | `pose_generation/generate_side_strip_poses.py` |
 | Press detect threshold | `0.5` N on / `0.3` N off | `pyForceDAQ/record_cone_press.py` |
 | Force sample / log rate | `125` Hz | `pyForceDAQ/record_cone_press.py` |
 | Force sensor | `FT12876` (Nano17) | `pyForceDAQ/record_cone_press.py` |

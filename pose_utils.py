@@ -1,5 +1,12 @@
+import os
+
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+
+# Calibration artifacts live in ur_calibration/ next to this file.
+_DEFAULT_PHYSICAL_POINTS_CSV = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "ur_calibration", "physical_points.csv"
+)
 
 
 def pose_str(p):
@@ -96,7 +103,7 @@ Max tool tilt toward vertical (deg) so the printed sensor holder clears
 MAX_ORIENTATION_TILT_DEG = 15.0
 
 
-def apex_start_tcp_pose(clearance_m=None, physical_points_csv="physical_points.csv"):
+def apex_start_tcp_pose(clearance_m=None, physical_points_csv=None):
     """
     Safe hover pose above the cone apex.
 
@@ -105,6 +112,8 @@ def apex_start_tcp_pose(clearance_m=None, physical_points_csv="physical_points.c
     """
     if clearance_m is None:
         clearance_m = START_CLEARANCE_M
+    if physical_points_csv is None:
+        physical_points_csv = _DEFAULT_PHYSICAL_POINTS_CSV
 
     default_tcp = np.array([0.002490, -0.513500, 0.1355])
     rotvec = START_POSE_ROTVEC.copy()
