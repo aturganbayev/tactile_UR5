@@ -88,7 +88,7 @@ V_real = 0.5
 # moves. Kept slow so the tool eases onto the cone instead of knocking it away.
 # Tune V_approach_real down if the cone still shifts on contact.
 A_approach_sim = 1.0
-A_approach_real = 0.1
+A_approach_real = 0.05
 V_approach_sim = 0.25
 V_approach_real = 0.05
 
@@ -99,7 +99,7 @@ START_CLEARANCE_M = 0.01
 
 # Approach & press distance m
 approach_distance = 0.015
-press_distance = 0.02
+press_distance = 0.03
 
 """
 

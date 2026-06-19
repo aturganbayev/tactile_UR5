@@ -9,6 +9,12 @@ figures/surface__points_cone_normals_plot.png
 figures/random_upper_points_plot.png
 figures/side_strip_touch_poses.png
 figures/cone_touch_poses.png
+# plot_cone_data.py outputs (one set per recording, timestamp-named)
+figures/*_force_vs_time.png
+figures/*_speed_vs_time.png
+figures/*_trajectory_3d.png
+figures/*_peak_force_per_press.png
+figures/*_press_force_on_cone.png
 # Generated data files
 *.csv
 *.csv.gz
