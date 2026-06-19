@@ -260,7 +260,6 @@ Each detected press prints live (`Press N: peak Fz = … at TCP=[…]`). Press `
 |---|---|
 | `<ts>_trajectory.csv` | Continuous `t, x,y,z,rx,ry,rz, speed, Fx,Fy,Fz, Fmag` (~125 Hz) |
 | `<ts>_presses.csv` | One row per detected press: peak `Fz` / `\|F\|` and the TCP pose at the peak |
-| `<ts>.csv.gz` | Raw full-rate force from pyForceDAQ (backup) |
 
 Detection thresholds and loop rate are constants at the top of `record_cone_press.py` (defaults: press starts at `0.5 N`, ends at `0.3 N`, 125 Hz). If `Fz` reads negative during contact, flip the threshold signs (the `reverse_parameter_names="Fz"` setting normally makes a press positive).
 

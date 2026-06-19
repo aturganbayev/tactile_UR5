@@ -15,7 +15,6 @@ Outputs (in ./cone_data/):
   <name>_trajectory.csv  - t, x,y,z,rx,ry,rz, speed, Fx,Fy,Fz, |F|   (~LOOP_HZ)
   <name>_presses.csv     - press#, t_peak, peak_Fz, peak_|F|, Fx,Fy,Fz,
                            and TCP pose x,y,z,rx,ry,rz at the peak
-  <name>.csv.gz          - raw full-rate force from pyForceDAQ (backup)
 
 Stop with Ctrl-C.
 
@@ -235,8 +234,10 @@ def main():
     recorder.determine_biases(n_samples=BIAS_SAMPLES)
     print("Sensor calibrated (biased).")
 
-    recorder.open_data_file(filename=f"{stamp}.csv", subdirectory="cone_data",
-                            zipped=True, time_stamp_filename=False, comment_line="")
+    # Force is read live from shared memory (proc.get_Fxyz) and logged, synced
+    # with the TCP pose, into <ts>_trajectory.csv. We deliberately do NOT open a
+    # pyForceDAQ data file: the slow cone presses are fully captured at the
+    # 125 Hz loop rate, and that buffered .gz did not reliably flush on Ctrl-C.
     recorder.start_recording()
     proc = recorder.force_sensor_processes()[0]
 
