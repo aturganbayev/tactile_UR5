@@ -13,6 +13,12 @@ from pose_utils import (START_CLEARANCE_M, apex_start_tcp_pose, pose_str,
                         SIM_HOST, REAL_HOST,
                         ur5_ik_near, UR5_IK_SEED)
 
+# Straight-up (base +Z) Cartesian lift applied before the joint-space move back
+# to the start pose. The retract point sits only ~2 cm off the cone, so the
+# movej swing to start can graze the cone and trigger a false press; lifting the
+# tool clear first prevents that.
+SAFE_LIFT_M = 0.06
+
 
 def main():
     input_csv = paths.CONE_TOUCH_POSES
@@ -67,8 +73,20 @@ def main():
     ur_script_lines.append(f"  movej([{q_start_str}], a={A}, v={V})")
     ur_script_lines.append(f"  sleep({SETTLE})")
 
+    def return_to_start(from_approach):
+        # Lift straight up (base +Z) clear of the cone, THEN swing to start in
+        # joint space, so the movej arc can't graze the cone (false press).
+        if from_approach is not None:
+            lifted = list(from_approach)
+            lifted[2] += SAFE_LIFT_M
+            ur_script_lines.append(f"  movel(p[{pose_str(lifted)}], a={A_app}, v={V_app})")
+            ur_script_lines.append(f"  sleep({SETTLE})")
+        ur_script_lines.append(f"  movej([{q_start_str}], a={A}, v={V})")
+        ur_script_lines.append(f"  sleep({SETTLE})")
+
     prev_strip = None
     seed = q_start          # chain the IK seed within a strip for a smooth path
+    last_approach = None     # most recent retract pose, lifted before returning
     n_unreached = 0
     for i, (_, row) in enumerate(poses_df.iterrows()):
         approach = [row["approach_x"], row["approach_y"], row["approach_z"],
@@ -82,8 +100,7 @@ def main():
         # cross-strip joint wind-up as the strips wrap around the cone).
         strip = int(row["strip"])
         if prev_strip is not None and strip != prev_strip:
-            ur_script_lines.append(f"  movej([{q_start_str}], a={A}, v={V})")
-            ur_script_lines.append(f"  sleep({SETTLE})")
+            return_to_start(last_approach)
             seed = q_start
         prev_strip = strip
 
@@ -105,12 +122,13 @@ def main():
         ur_script_lines.append(f"  sleep({SETTLE})")
         ur_script_lines.append(f"  movel(p[{pose_str(approach)}], a={A_app}, v={V_app})")
         ur_script_lines.append(f"  sleep({SETTLE})")
+        last_approach = approach
 
     if n_unreached:
         print(f"Warning: {n_unreached} pose(s) were unreachable and skipped.")
 
-    # Return to start pose
-    ur_script_lines.append(f"  movej([{q_start_str}], a={A}, v={V})")
+    # Return to start pose (lifting clear of the cone first)
+    return_to_start(last_approach)
     ur_script_lines.append("end\nmy_program()\n")
 
     ur_script = "\n".join(ur_script_lines)
