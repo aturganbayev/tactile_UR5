@@ -53,6 +53,12 @@ SENSOR_NAME = "FT12876"
 CALIBRATION_FOLDER = "calibration"
 REVERSE_FZ = "Fz"          # press -> positive Fz, matches existing data
 BIAS_SAMPLES = 500
+# DAQ sample rate (Hz). The sensor runs in HW-timed single-point mode, so the
+# host must service the device every sample; too high a rate overruns the DAQ
+# buffer (NI error -200714: "could not transfer data fast enough"). We only log
+# at LOOP_HZ (125) and presses last seconds, so a modest rate is plenty. Lower
+# this further (e.g. 250) if the overrun recurs on a loaded machine.
+SENSOR_RATE = 500
 
 # Press detection on Fz (Newtons). Hysteresis prevents flicker.
 PRESS_ON_N = 0.5           # Fz rising above this starts a press
@@ -233,6 +239,7 @@ def main():
     sensor = SensorSettings(device_id="1",
                             calibration_folder=CALIBRATION_FOLDER,
                             sensor_name=SENSOR_NAME,
+                            rate=SENSOR_RATE,
                             reverse_parameter_names=REVERSE_FZ)
     recorder = DataRecorder(force_sensor_settings=[sensor],
                             poll_udp_connection=False, polling_priority="normal")
