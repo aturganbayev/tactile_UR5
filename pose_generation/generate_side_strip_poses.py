@@ -78,13 +78,9 @@ def main():
         # Normalise to [-180, 180] to match arctan2 output
         target = (strip_angle_raw + 180) % 360 - 180
 
-        # Serpentine path: even strips run top→bottom, odd strips bottom→top,
-        # so the robot continues from where it finished the previous strip.
-        point_order = range(NUM_POINTS)
-        if strip_idx % 2 == 1:
-            point_order = reversed(point_order)
-
-        for i in point_order:
+        # Every strip runs top→bottom; the execution script retracts to the
+        # apex/start pose between strips, so direction doesn't need to match.
+        for i in range(NUM_POINTS):
             t_hi, t_lo = t_bins[i], t_bins[i + 1]
             band = df_height[(df_height["t"] <= t_hi) & (df_height["t"] >= t_lo)]
             if len(band) == 0:
