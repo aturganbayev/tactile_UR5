@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from scipy.optimize import least_squares
 
 # Calibration artifacts live in ur_calibration/ next to this file.
 _DEFAULT_PHYSICAL_POINTS_CSV = os.path.join(
@@ -77,19 +78,20 @@ def tilt_normal_toward_vertical(normal, tilt_deg):
 SIM_HOST = "172.17.0.2"
 REAL_HOST = "192.168.0.110"
 
-# Velocity and Acceleration for Sim and Real Robot (m/s; m/s^2)
-# Transit speed (free-space moves between touch points). Can be fast.
-A_sim = 2.5
+# Velocity and Acceleration for Sim and Real Robot.
+# Transit moves are joint-space (movej): v is rad/s, a is rad/s^2. Sim is pushed
+# near the UR5 joint limit (~3.14 rad/s) since there's no hardware to protect.
+A_sim = 8.0
 A_real = 0.3
-V_sim = 1
+V_sim = 3.0
 V_real = 0.5
 
 # Approach/contact speed: used only for the short press-into-surface and retract
 # moves. Kept slow so the tool eases onto the cone instead of knocking it away.
 # Tune V_approach_real down if the cone still shifts on contact.
-A_approach_sim = 1.0
+A_approach_sim = 2.5
 A_approach_real = 0.025
-V_approach_sim = 0.25
+V_approach_sim = 1
 V_approach_real = 0.025
 
 # Default orientation used when hovering above the cone apex.
@@ -101,14 +103,85 @@ START_CLEARANCE_M = 0.01
 approach_distance = 0.015
 press_distance = 0.03
 
+# --------------------------------------------------------------------------- #
+#                            UR5 KINEMATICS (offline IK)                       #
+# --------------------------------------------------------------------------- #
+# Official UR5 Denavit-Hartenberg parameters (metres, radians). Used to solve
+# joint targets in software so we don't depend on the controller's
+# get_inverse_kin, whose single fixed seed cannot converge for poses spread all
+# the way around the cone. Joints are commanded directly with movej([...]).
+
+_UR5_D = np.array([0.089159, 0.0, 0.0, 0.10915, 0.09465, 0.0823])
+_UR5_A = np.array([0.0, -0.425, -0.39225, 0.0, 0.0, 0.0])
+_UR5_ALPHA = np.array([np.pi / 2, 0.0, 0.0, np.pi / 2, -np.pi / 2, 0.0])
+
+# Seed for the very first IK solve (a safe, mid-range elbow configuration).
+UR5_IK_SEED = np.array([-1.57, -1.57, -1.57, -1.57, 1.57, -1.57])
+
+
+def _ur5_dh(theta, i):
+    ct, st = np.cos(theta), np.sin(theta)
+    ca, sa = np.cos(_UR5_ALPHA[i]), np.sin(_UR5_ALPHA[i])
+    return np.array([
+        [ct, -st * ca, st * sa, _UR5_A[i] * ct],
+        [st, ct * ca, -ct * sa, _UR5_A[i] * st],
+        [0.0, sa, ca, _UR5_D[i]],
+        [0.0, 0.0, 0.0, 1.0],
+    ])
+
+
+def ur5_fk(q):
+    """Forward kinematics: joint vector (6) -> 4x4 TCP (flange) pose."""
+    T = np.eye(4)
+    for i in range(6):
+        T = T @ _ur5_dh(q[i], i)
+    return T
+
+
+def _ur5_pose_residual(q, target_T):
+    T = ur5_fk(q)
+    pos_err = T[:3, 3] - target_T[:3, 3]
+    rot_err = R.from_matrix(T[:3, :3].T @ target_T[:3, :3]).as_rotvec()
+    return np.concatenate([pos_err, rot_err])
+
+
+def ur5_ik_near(pose, seed, max_pos_err=2e-3):
+    """Numerical IK: joint solution for `pose` (x,y,z,rx,ry,rz) nearest `seed`.
+
+    Chaining the seed from the previous solved pose keeps the trajectory smooth
+    and the branch consistent. Returns (q, ok) where ok is False if the solver
+    could not reach the pose (position error above max_pos_err).
+    """
+    pose = np.asarray(pose, dtype=float)
+    target_T = np.eye(4)
+    target_T[:3, :3] = R.from_rotvec(pose[3:]).as_matrix()
+    target_T[:3, 3] = pose[:3]
+    sol = least_squares(_ur5_pose_residual, np.asarray(seed, dtype=float),
+                        method="lm", args=(target_T,), max_nfev=300)
+    q = sol.x
+    # Wrap each joint to the 2*pi-equivalent nearest the seed (same pose,
+    # preserves continuity and keeps within the UR5 +/-2*pi joint range).
+    q = np.asarray(seed, dtype=float) + ((q - np.asarray(seed, dtype=float) + np.pi) % (2 * np.pi) - np.pi)
+    ok = np.linalg.norm(ur5_fk(q)[:3, 3] - target_T[:3, 3]) <= max_pos_err
+    return q, ok
+
 """
 
-Max tool tilt toward vertical (deg) so the printed sensor holder clears
-   the cone surface below the contact point. Generators scale this with
-   height: 0 near the apex, full value at the lowest touch band.
-   
+Tool tilt toward vertical (deg). Two purposes:
+  * holder clearance: tilt the tool away from the cone so the printed sensor
+    holder clears the surface below the contact point.
+  * self-collision avoidance: a more top-down (vertical) approach keeps the
+    wrist extended, so the tool flange stays away from the lower arm. Pure
+    horizontal approaches fold the wrist and risk clamping the forearm.
+
+Generators scale tilt with height between MIN (apex band) and MAX (lowest
+band): MIN is a floor applied to ALL points so even the apex approaches come
+in from above; MAX adds extra tilt low down for holder clearance. Raise
+MIN_ORIENTATION_TILT_DEG if the wrist still folds toward the forearm on the
+near-horizontal strips.
 """
-MAX_ORIENTATION_TILT_DEG = 15.0
+MIN_ORIENTATION_TILT_DEG = 20.0
+MAX_ORIENTATION_TILT_DEG = 30.0
 
 
 def apex_start_tcp_pose(clearance_m=None, physical_points_csv=None):

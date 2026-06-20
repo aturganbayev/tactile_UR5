@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.spatial import cKDTree
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import paths
@@ -11,13 +12,14 @@ from pose_utils import (
     approach_distance,
     press_distance,
     approach_and_press_poses,
+    MIN_ORIENTATION_TILT_DEG,
     MAX_ORIENTATION_TILT_DEG,
 )
 
 # --- Parameters ---
 NUM_STRIPS = 12             # number of strips evenly distributed around the cone
 NUM_POINTS = 8           # number of touch points per strip (top → bottom)
-MIN_HEIGHT_FRACTION = 0.75  # lower bound as a fraction of cone height
+MIN_HEIGHT_FRACTION = 0.7  # lower bound as a fraction of cone height
                             # (0.0 = base, 1.0 = apex). Kept high so the lowest
                             # touch band stays well above the base plane: the
                             # sensor holder spreads radially and bumps the table
@@ -64,6 +66,11 @@ def main():
     df["perp_x"], df["perp_y"], df["perp_z"] = perp[:, 0], perp[:, 1], perp[:, 2]
     df["angle"] = np.degrees(np.arctan2(perp @ v, perp @ u))
 
+    # Nearest-neighbour lookup over the measured cloud, used to source a local
+    # surface normal for each synthesized meridian point.
+    surface_tree = cKDTree(pts)
+    surface_normals = df[["nx", "ny", "nz"]].to_numpy()
+
     t_max = t.max()
     t_min = t.min()
     t_lower = t_min + MIN_HEIGHT_FRACTION * (t_max - t_min)
@@ -81,30 +88,55 @@ def main():
         # Normalise to [-180, 180] to match arctan2 output
         target = (strip_angle_raw + 180) % 360 - 180
 
+        # Outward radial direction for this strip's meridian.
+        th = np.radians(target)
+        e_r = np.cos(th) * u + np.sin(th) * v
+
         # Every strip runs top→bottom; the execution script retracts to the
         # apex/start pose between strips, so direction doesn't need to match.
         for i in range(NUM_POINTS):
             t_hi, t_lo = t_bins[i], t_bins[i + 1]
+            t_c = 0.5 * (t_hi + t_lo)   # evenly-spaced target height (band centre)
             band = df_height[(df_height["t"] <= t_hi) & (df_height["t"] >= t_lo)]
             if len(band) == 0:
                 continue
-            ang_dist = band["angle"].apply(lambda a: abs((a - target + 180) % 360 - 180))
-            row = band.loc[ang_dist.idxmin()]
 
-            p = np.array([row["x"], row["y"], row["z"]])
-            n = np.array([row["nx"], row["ny"], row["nz"]])
+            # Cone radius at this height from the band's measured points. A
+            # local linear fit of radius vs height tracks the taper; the mean is
+            # a fallback when the band is too thin to fit.
+            bt = band["t"].to_numpy()
+            br = np.linalg.norm(
+                band[["perp_x", "perp_y", "perp_z"]].to_numpy(), axis=1)
+            if len(band) >= 2 and np.ptp(bt) > 1e-9:
+                slope, intercept = np.polyfit(bt, br, 1)
+                r_c = slope * t_c + intercept
+            else:
+                r_c = float(br.mean())
+
+            # Synthesize the contact point on the strip's meridian: a straight
+            # line down the cone at this strip's angle, with points evenly
+            # spaced in height. The cone is a surface of revolution about
+            # `axis`, so this lands on the real surface (within ~mm).
+            p = origin + t_c * axis + r_c * e_r
+
+            # Normal from the nearest measured point, projected into the
+            # meridian plane and forced outward (positive axial component). This
+            # keeps the measured surface tilt while giving a clean, consistent
+            # press direction along the strip. abs() also handles the apex,
+            # where the outward normal is the axis itself.
+            n_meas = surface_normals[surface_tree.query(p)[1]]
+            n_ax = abs(float(np.dot(n_meas, axis)) / np.linalg.norm(n_meas))
+            n = n_ax * axis + np.sqrt(max(0.0, 1.0 - n_ax ** 2)) * e_r
             n = n / np.linalg.norm(n)
 
-            v_out = np.array([row["perp_x"], row["perp_y"], row["perp_z"]])
-            if np.linalg.norm(v_out) > 1e-5:
-                v_out = v_out / np.linalg.norm(v_out)
-                if np.dot(n, v_out) < 0:
-                    n = -n
-
-            # Tilt the tool toward vertical for holder clearance:
-            # 0 deg at the apex band, MAX_ORIENTATION_TILT_DEG at the lowest.
-            height_frac = (row["t"] - t_lower) / (t_max - t_lower)
-            tilt_deg = MAX_ORIENTATION_TILT_DEG * (1.0 - height_frac)
+            # Tilt the tool toward vertical: MIN at the apex band (a floor on
+            # every point so even the top approaches come in from above, keeping
+            # the wrist extended and the flange clear of the lower arm), rising
+            # to MAX at the lowest band for holder clearance.
+            height_frac = (t_c - t_lower) / (t_max - t_lower)
+            tilt_deg = (MIN_ORIENTATION_TILT_DEG
+                        + (MAX_ORIENTATION_TILT_DEG - MIN_ORIENTATION_TILT_DEG)
+                        * (1.0 - height_frac))
 
             approach_p, (rx, ry, rz), press_p, _ = approach_and_press_poses(
                 p, n, approach_distance, press_distance, tilt_deg=tilt_deg
