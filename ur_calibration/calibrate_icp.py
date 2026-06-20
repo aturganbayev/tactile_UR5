@@ -4,7 +4,6 @@ import sys
 import numpy as np
 import pandas as pd
 import trimesh
-import trimesh.registration
 
 # pose_utils.py and paths.py live one level up at the repo root.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -63,22 +62,29 @@ def main():
 
     print(f"Loaded {len(phys_points)} physical contact points and {len(stl_points)} STL points.")
 
-    T_init = np.eye(4)
-    T_init[:3, 3] = stl_apex - physical_apex
+    # Constrained calibration: keep the cone axis VERTICAL (robot +Z) instead of
+    # letting ICP rotate it freely. The calibration points all sit near the apex
+    # (top ~half of the cone), which barely constrains the axis orientation, so a
+    # free ICP fits a spurious ~20deg tilt. The cone physically stands upright on
+    # a level surface, so we fix the rotation (the STL +z, which is the cone's
+    # symmetry axis, -> robot +Z) and fit ONLY the position by translation-only
+    # ICP against the physical points. Rotation about the vertical is irrelevant
+    # for a surface of revolution, so it is left at identity.
+    from scipy.spatial import cKDTree
 
-    print("Running ICP...")
-    T_icp, _, cost = trimesh.registration.icp(
-        phys_points,
-        stl_points,
-        initial=T_init,
-        max_iterations=200,
-        scale=False,
-        reflection=False,
-    )
+    R_vert = np.eye(3)
+    t = physical_apex - stl_apex          # init: align apexes
+    print("Fitting position (cone axis pinned vertical)...")
+    for _ in range(100):
+        _, idx = cKDTree(stl_points + t).query(phys_points)
+        correction = (phys_points - (stl_points[idx] + t)).mean(axis=0)
+        t = t + correction
+        if np.linalg.norm(correction) < 1e-9:
+            break
 
-    print(f"ICP cost: {cost:.6f} m")
-
-    T_stl_to_robot = np.linalg.inv(T_icp)
+    T_stl_to_robot = np.eye(4)
+    T_stl_to_robot[:3, :3] = R_vert
+    T_stl_to_robot[:3, 3] = t
     np.savetxt(paths.ICP_MATRIX, T_stl_to_robot)
 
     ones = np.ones((len(stl_points), 1))

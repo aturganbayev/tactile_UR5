@@ -17,13 +17,17 @@ from pose_utils import (
 )
 
 # --- Parameters ---
-NUM_STRIPS = 12             # number of strips evenly distributed around the cone
-NUM_POINTS = 8           # number of touch points per strip (top → bottom)
-MIN_HEIGHT_FRACTION = 0.7  # lower bound as a fraction of cone height
+NUM_STRIPS = 15             # number of strips evenly distributed around the cone
+NUM_POINTS = 10           # number of touch points per strip (top → bottom)
+MIN_HEIGHT_FRACTION = 0.72  # lower bound as a fraction of cone height
                             # (0.0 = base, 1.0 = apex). Kept high so the lowest
-                            # touch band stays well above the base plane: the
-                            # sensor holder spreads radially and bumps the table
-                            # (a false press) if touches go too low on the cone.
+                            # band stays well above the base plane AND so the arm
+                            # config (esp. on the near side, toward the robot
+                            # base) keeps the wrist joints clear of the table.
+                            # Going too low (e.g. 0.6) dropped the near-side
+                            # wrist to ~49 mm and it grazed the table; 0.72 keeps
+                            # ~80 mm, matching the far side. Raise toward 0.75 for
+                            # more margin, lower for more lower-cone coverage.
 
 
 def cone_axis_from_calibration():
@@ -162,55 +166,52 @@ def main():
 
     
     colors = plt.cm.hsv(np.linspace(0, 1, NUM_STRIPS, endpoint=False))
+    P = df[["x", "y", "z"]].to_numpy()
 
-    # Cone-frame rotation: maps the cone axis -> +Z and the (u, v) radial basis
-    # to X/Y, so the cone stands upright. Identity leaves the robot base frame
-    # (showing the cone's real tilt). Both rotate display only — the generated
-    # poses in the CSV stay in the robot base frame.
-    R_cone = np.vstack([u, v, axis])
+    fig = plt.figure(figsize=(18, 9))
 
-    def draw(ax, to_pts, to_vec, labels, title, legend=False):
-        surf = to_pts(df[["x", "y", "z"]].to_numpy())
-        ax.scatter(surf[:, 0], surf[:, 1], surf[:, 2],
-                   c="dimgray", s=3, alpha=0.3, label="All surface points")
-        for strip_idx, strip_angle_raw in enumerate(strip_angles):
-            strip_df = poses_df[poses_df["strip"] == strip_idx]
-            pc = to_pts(strip_df[["x", "y", "z"]].to_numpy())
-            nc = to_vec(strip_df[["nx", "ny", "nz"]].to_numpy())
-            ax.scatter(pc[:, 0], pc[:, 1], pc[:, 2],
-                       c=[colors[strip_idx]], s=80, marker="o", zorder=5,
-                       label=f"Strip {strip_idx}  ({strip_angle_raw:.0f}°)")
-            ax.quiver(pc[:, 0], pc[:, 1], pc[:, 2],
-                      nc[:, 0], nc[:, 1], nc[:, 2],
-                      length=0.015, color=colors[strip_idx])
-        ax.set_xlabel(labels[0]); ax.set_ylabel(labels[1]); ax.set_zlabel(labels[2])
-        # Equal aspect so the cone shows true proportions (matplotlib's 3D
-        # default stretches each axis to fill a cube).
-        centers = (surf.max(axis=0) + surf.min(axis=0)) / 2
-        half = (surf.max(axis=0) - surf.min(axis=0)).max() / 2
-        ax.set_xlim(centers[0] - half, centers[0] + half)
-        ax.set_ylim(centers[1] - half, centers[1] + half)
-        ax.set_zlim(centers[2] - half, centers[2] + half)
-        ax.set_box_aspect((1, 1, 1))
-        ax.view_init(elev=22, azim=-60)
-        ax.set_title(title)
-        if legend:
-            ax.legend(loc="upper right", fontsize=6)
+    # --- 3D view (robot base frame) ---
+    ax3d = fig.add_subplot(121, projection="3d")
+    ax3d.scatter(P[:, 0], P[:, 1], P[:, 2],
+                 c="dimgray", s=3, alpha=0.3, label="All surface points")
+    for strip_idx, strip_angle_raw in enumerate(strip_angles):
+        strip_df = poses_df[poses_df["strip"] == strip_idx]
+        ax3d.scatter(strip_df["x"], strip_df["y"], strip_df["z"],
+                     c=[colors[strip_idx]], s=70, marker="o", zorder=5,
+                     label=f"Strip {strip_idx}  ({strip_angle_raw:.0f}°)")
+        ax3d.quiver(strip_df["x"], strip_df["y"], strip_df["z"],
+                    strip_df["nx"], strip_df["ny"], strip_df["nz"],
+                    length=0.015, color=colors[strip_idx])
+    ax3d.set_xlabel("X (m)"); ax3d.set_ylabel("Y (m)"); ax3d.set_zlabel("Z (m)")
+    # Equal aspect so the cone shows true proportions (matplotlib's 3D default
+    # stretches each axis to fill a cube).
+    centers = (P.max(axis=0) + P.min(axis=0)) / 2
+    half = (P.max(axis=0) - P.min(axis=0)).max() / 2
+    ax3d.set_xlim(centers[0] - half, centers[0] + half)
+    ax3d.set_ylim(centers[1] - half, centers[1] + half)
+    ax3d.set_zlim(centers[2] - half, centers[2] + half)
+    ax3d.set_box_aspect((1, 1, 1))
+    ax3d.view_init(elev=22, azim=-60)
+    ax3d.set_title("3D view")
+    ax3d.legend(loc="upper right", fontsize=6)
 
-    ident = lambda P: np.asarray(P, dtype=float)
-    cone_pts = lambda P: (np.asarray(P, dtype=float) - origin) @ R_cone.T
-    cone_vec = lambda V: np.asarray(V, dtype=float) @ R_cone.T
+    # --- Top view (looking straight down the cone axis) ---
+    ax2d = fig.add_subplot(122)
+    ax2d.scatter(P[:, 0], P[:, 1], c="dimgray", s=3, alpha=0.3)
+    L = 0.012   # arrow length (m) for the radial (X/Y) part of each normal
+    for strip_idx, strip_angle_raw in enumerate(strip_angles):
+        strip_df = poses_df[poses_df["strip"] == strip_idx]
+        ax2d.scatter(strip_df["x"], strip_df["y"],
+                     c=[colors[strip_idx]], s=40, zorder=5)
+        ax2d.quiver(strip_df["x"], strip_df["y"],
+                    strip_df["nx"] * L, strip_df["ny"] * L,
+                    color=colors[strip_idx], angles="xy",
+                    scale_units="xy", scale=1, width=0.004)
+    ax2d.set_xlabel("X (m)"); ax2d.set_ylabel("Y (m)")
+    ax2d.set_aspect("equal")
+    ax2d.set_title("Top view (down cone axis)")
 
-    fig = plt.figure(figsize=(20, 9))
-    draw(fig.add_subplot(121, projection="3d"), cone_pts, cone_vec,
-         ("X (m, cone frame)", "Y (m, cone frame)", "Height along cone axis (m)"),
-         "Cone frame (upright)", legend=True)
-    draw(fig.add_subplot(122, projection="3d"), ident, ident,
-         ("X (m)", "Y (m)", "Z (m)"),
-         "Robot base frame (true tilt)")
-    fig.suptitle(
-        f"Cone touch poses — {NUM_STRIPS} strips × {NUM_POINTS} points, "
-        f"height ≥ {MIN_HEIGHT_FRACTION * 100:.0f}% of cone")
+    fig.suptitle(f"Cone touch poses — {NUM_STRIPS} strips × {NUM_POINTS} points")
 
     os.makedirs(paths.FIGURES, exist_ok=True)
     plt.savefig(paths.SIDE_STRIP_PLOT, dpi=300, bbox_inches="tight")
