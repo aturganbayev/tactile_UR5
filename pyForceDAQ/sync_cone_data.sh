@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-SRC="/home/gifty4/remote-server/ur_egg_v3_Aza_Minnesota/tactile_UR5/pyForceDAQ/cone_data/"
+SRC="/home/gifty4/remote-server/pyForceDAQ/cone_data/"
 DST="/home/gifty4/github_local/tactile_UR5/pyForceDAQ/cone_data/"
 
 WATCH=0
