@@ -15,33 +15,63 @@ from pose_utils import (
 )
 
 # --- Parameters ---
-NUM_STRIPS = 4             # number of strips evenly distributed around the cone
-NUM_POINTS = 4           # number of touch points per strip (top → bottom)
+NUM_STRIPS = 12             # number of strips evenly distributed around the cone
+NUM_POINTS = 8           # number of touch points per strip (top → bottom)
 MIN_HEIGHT_FRACTION = 0.6  # lower bound as a fraction of cone height
                            # (0.0 = base, 1.0 = apex)
+
+
+def cone_axis_from_calibration():
+    """True symmetry axis of the cone in the robot base frame.
+
+    surface_points_base.csv is the canonical cone mapped through the ICP
+    calibration's rigid transform, which can tilt the cone's axis away from
+    world Z. Height/angle bands must follow this axis, or they cut across
+    the cone instead of tracing rings around it.
+    """
+    T = np.loadtxt(paths.ICP_MATRIX)
+    axis = T[:3, :3] @ np.array([0.0, 0.0, 1.0])
+    return axis / np.linalg.norm(axis)
+
+
+def perpendicular_basis(axis):
+    ref = np.array([0.0, 0.0, 1.0])
+    if abs(np.dot(axis, ref)) > 0.999:
+        ref = np.array([0.0, 1.0, 0.0])
+    u = np.cross(axis, ref)
+    u = u / np.linalg.norm(u)
+    v = np.cross(axis, u)
+    return u, v
 
 
 def main():
     input_csv = paths.SURFACE_POINTS_BASE
     df = pd.read_csv(input_csv)
 
-    max_z = df["z"].max()
-    min_z = df["z"].min()
-    z_lower = min_z + MIN_HEIGHT_FRACTION * (max_z - min_z)
+    axis = cone_axis_from_calibration()
+    u, v = perpendicular_basis(axis)
 
-    top_idx = df["z"].idxmax()
-    center_x = df.loc[top_idx, "x"]
-    center_y = df.loc[top_idx, "y"]
+    pts = df[["x", "y", "z"]].to_numpy()
+    origin = pts.mean(axis=0)
+    rel = pts - origin
+    t = rel @ axis
+    perp = rel - np.outer(t, axis)
 
-    df["angle"] = np.degrees(np.arctan2(df["y"] - center_y, df["x"] - center_x))
+    df["t"] = t
+    df["perp_x"], df["perp_y"], df["perp_z"] = perp[:, 0], perp[:, 1], perp[:, 2]
+    df["angle"] = np.degrees(np.arctan2(perp @ v, perp @ u))
 
-    df_height = df[df["z"] >= z_lower].copy()
+    t_max = t.max()
+    t_min = t.min()
+    t_lower = t_min + MIN_HEIGHT_FRACTION * (t_max - t_min)
+
+    df_height = df[df["t"] >= t_lower].copy()
     if len(df_height) == 0:
         print("Error: no points found in the specified height range.")
         return
 
     strip_angles = np.linspace(0, 360, NUM_STRIPS, endpoint=False)
-    z_bins = np.linspace(max_z, z_lower, NUM_POINTS + 1)
+    t_bins = np.linspace(t_max, t_lower, NUM_POINTS + 1)
 
     all_poses = []
     for strip_idx, strip_angle_raw in enumerate(strip_angles):
@@ -55,8 +85,8 @@ def main():
             point_order = reversed(point_order)
 
         for i in point_order:
-            z_hi, z_lo = z_bins[i], z_bins[i + 1]
-            band = df_height[(df_height["z"] <= z_hi) & (df_height["z"] >= z_lo)]
+            t_hi, t_lo = t_bins[i], t_bins[i + 1]
+            band = df_height[(df_height["t"] <= t_hi) & (df_height["t"] >= t_lo)]
             if len(band) == 0:
                 continue
             ang_dist = band["angle"].apply(lambda a: abs((a - target + 180) % 360 - 180))
@@ -66,15 +96,15 @@ def main():
             n = np.array([row["nx"], row["ny"], row["nz"]])
             n = n / np.linalg.norm(n)
 
-            v_out = np.array([p[0] - center_x, p[1] - center_y, 0.0])
+            v_out = np.array([row["perp_x"], row["perp_y"], row["perp_z"]])
             if np.linalg.norm(v_out) > 1e-5:
                 v_out = v_out / np.linalg.norm(v_out)
-                if np.dot(n[:2], v_out[:2]) < 0:
+                if np.dot(n, v_out) < 0:
                     n = -n
 
             # Tilt the tool toward vertical for holder clearance:
             # 0 deg at the apex band, MAX_ORIENTATION_TILT_DEG at the lowest.
-            height_frac = (p[2] - z_lower) / (max_z - z_lower)
+            height_frac = (row["t"] - t_lower) / (t_max - t_lower)
             tilt_deg = MAX_ORIENTATION_TILT_DEG * (1.0 - height_frac)
 
             approach_p, (rx, ry, rz), press_p, _ = approach_and_press_poses(
