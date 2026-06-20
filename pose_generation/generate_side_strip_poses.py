@@ -17,8 +17,11 @@ from pose_utils import (
 # --- Parameters ---
 NUM_STRIPS = 12             # number of strips evenly distributed around the cone
 NUM_POINTS = 8           # number of touch points per strip (top → bottom)
-MIN_HEIGHT_FRACTION = 0.6  # lower bound as a fraction of cone height
-                           # (0.0 = base, 1.0 = apex)
+MIN_HEIGHT_FRACTION = 0.75  # lower bound as a fraction of cone height
+                            # (0.0 = base, 1.0 = apex). Kept high so the lowest
+                            # touch band stays well above the base plane: the
+                            # sensor holder spreads radially and bumps the table
+                            # (a false press) if touches go too low on the cone.
 
 
 def cone_axis_from_calibration():
