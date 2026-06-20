@@ -2,7 +2,7 @@
 """
 Synchronized cone-press recorder for the UR5 + ATI Nano17 (FT12876).
 
-Run this ALONGSIDE a motion script (e.g. ../run_random_upper_poses.py) that
+Run this ALONGSIDE a motion script (e.g. ../execution/run_side_strip_poses.py) that
 drives the robot to press the cone. While it runs it:
 
   * reads the robot TCP Cartesian pose from the UR real-time stream (port 30003),

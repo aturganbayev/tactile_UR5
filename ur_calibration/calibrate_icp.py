@@ -115,7 +115,7 @@ def main():
 
     print("\nSaved surface_points_base.csv and icp_transformation_matrix.txt")
     print("Next: python3 ur_calibration/validate_calibration.py")
-    print("Then: python3 generate_random_upper_poses.py")
+    print("Then: python3 pose_generation/generate_side_strip_poses.py")
 
 
 if __name__ == "__main__":

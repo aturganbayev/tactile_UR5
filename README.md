@@ -152,7 +152,7 @@ Re-run `ur_calibration/calibrate_icp.py` if mean error exceeds 5 mm.
 
 ### Step 6 — Generate touch poses
 
-Three options depending on the experiment scope:
+Two options depending on the experiment scope:
 
 #### 6a — Full surface coverage
 
@@ -164,19 +164,7 @@ python pose_generation/generate_touch_poses.py
 
 **Output:** `data/touch_poses.csv`
 
-#### 6b — Random upper-surface poses
-
-Selects `NUM_POINTS` points (default: 5) from the upper quarter of the cone, spread evenly by angle and filtered to within `MAX_Y_OFFSET_M` of the apex Y row.
-
-```bash
-python pose_generation/generate_random_upper_poses.py
-```
-
-**Output:** `data/random_upper_touch_poses.csv`, `figures/random_upper_points_plot.png`
-
-![Random upper touch poses](figures/example_random_upper_points_plot.png)
-
-#### 6c — Side strips around the cone (top to bottom)
+#### 6b — Side strips around the cone (top to bottom)
 
 Generates `NUM_STRIPS` vertical strips evenly distributed around the cone, each with `NUM_POINTS` touch points from the apex down to `MIN_HEIGHT_FRACTION` of the cone height. Each height band picks the surface point closest to the strip's target angle.
 
@@ -231,10 +219,6 @@ python execution/start_pose.py
 Streams the full URScript program to the robot. For each pose: transit to approach → press → retract. Prompts for `sim` or `real` (speeds come from `A_sim`/`V_sim`/`A_real`/`V_real` in `pose_utils.py`). The robot returns to the start pose after all touches complete.
 
 ```bash
-# Run random upper-surface poses (from step 6b)
-python execution/run_random_upper_poses.py
-
-# Run side strip poses (from step 6c)
 python execution/run_side_strip_poses.py
 ```
 
@@ -286,7 +270,7 @@ cd pyForceDAQ
 python3 record_cone_press.py
 
 # Terminal 2 — motion that presses the cone
-python3 execution/run_random_upper_poses.py # or execution/run_side_strip_poses.py
+python3 execution/run_side_strip_poses.py
 ```
 
 Each detected press prints live (`Press N: peak Fz = … at TCP=[…]`). Press `Ctrl-C` to stop the recorder once the motion finishes. Outputs are written to `pyForceDAQ/cone_data/`, timestamped per session:
@@ -349,9 +333,7 @@ Sends `stopl(2.5)` directly to the real robot (`REAL_HOST` in `pose_utils.py`, `
 | `ur_calibration/calibrate_icp.py` | ICP alignment of STL to robot base frame |
 | `ur_calibration/validate_calibration.py` | Verify calibration quality against recorded points |
 | `pose_generation/generate_touch_poses.py` | Generate approach/press poses for the full surface |
-| `pose_generation/generate_random_upper_poses.py` | Generate poses for random upper-surface points |
 | `pose_generation/generate_side_strip_poses.py` | Generate poses for multiple strips around the cone, top to bottom |
-| `execution/run_random_upper_poses.py` | Execute upper-surface touch sequence on the robot |
 | `execution/run_side_strip_poses.py` | Execute side strip touch sequence on the robot |
 | `execution/home_start.py` | Move robot home → pre-pose → start pose |
 | `execution/start_pose.py` | Move robot directly to start pose |
@@ -365,7 +347,6 @@ Sends `stopl(2.5)` directly to the real robot (`REAL_HOST` in `pose_utils.py`, `
 | `ur_calibration/physical_points.csv` | Recorded physical touch points from teach pendant |
 | `ur_calibration/icp_transformation_matrix.txt` | 4×4 STL-to-robot transform from ICP |
 | `data/touch_poses.csv` | Full-surface touch poses |
-| `data/random_upper_touch_poses.csv` | Random upper-surface touch poses |
 | `data/cone_touch_poses.csv` | Side strip touch poses (with strip index and tilt per pose) |
 | `figures/` | Saved plot outputs |
 | `pyForceDAQ/cone_data/` | Force + pose recordings (per-session trajectory and per-press CSVs; gitignored) |
@@ -390,7 +371,6 @@ Defined in `pose_utils.py` and the generator scripts:
 | Real approach (contact) speed / accel | `V_approach_real = 0.05` m/s, `A_approach_real = 0.1` m/s² | `pose_utils.py` |
 | Sim approach (contact) speed / accel | `V_approach_sim = 0.25` m/s, `A_approach_sim = 1.0` m/s² | `pose_utils.py` |
 | Inter-strip via clearance | `0.05` m above apex | `execution/run_side_strip_poses.py` |
-| Upper zone threshold | top 25 % of cone height | `pose_generation/generate_random_upper_poses.py` |
 | Number of strips | `4` (evenly around the cone) | `pose_generation/generate_side_strip_poses.py` |
 | Side strip lower bound | `0.6` (60 % from base) | `pose_generation/generate_side_strip_poses.py` |
 | Press detect threshold | `0.5` N on / `0.3` N off | `pyForceDAQ/record_cone_press.py` |

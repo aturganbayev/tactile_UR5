@@ -23,7 +23,6 @@ CALIBRATION = os.path.join(ROOT, "ur_calibration")
 CONE_STL = os.path.join(DATA, "cone.STL")
 SURFACE_POINTS = os.path.join(DATA, "surface_points.csv")
 TOUCH_POSES = os.path.join(DATA, "touch_poses.csv")
-RANDOM_UPPER_TOUCH_POSES = os.path.join(DATA, "random_upper_touch_poses.csv")
 CONE_TOUCH_POSES = os.path.join(DATA, "cone_touch_poses.csv")
 
 # Calibration artifacts (in ur_calibration/)
@@ -34,5 +33,4 @@ ICP_MATRIX = os.path.join(CALIBRATION, "icp_transformation_matrix.txt")
 # Figure outputs
 SURFACE_POINTS_PLOT = os.path.join(FIGURES, "surface__points_cone_plot.png")
 SURFACE_NORMALS_PLOT = os.path.join(FIGURES, "surface__points_cone_normals_plot.png")
-RANDOM_UPPER_PLOT = os.path.join(FIGURES, "random_upper_points_plot.png")
 SIDE_STRIP_PLOT = os.path.join(FIGURES, "cone_touch_poses.png")
