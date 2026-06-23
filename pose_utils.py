@@ -180,8 +180,8 @@ in from above; MAX adds extra tilt low down for holder clearance. Raise
 MIN_ORIENTATION_TILT_DEG if the wrist still folds toward the forearm on the
 near-horizontal strips.
 """
-MIN_ORIENTATION_TILT_DEG = 0
-MAX_ORIENTATION_TILT_DEG = 0
+MIN_ORIENTATION_TILT_DEG = 7
+MAX_ORIENTATION_TILT_DEG = 14
 
 
 def apex_start_tcp_pose(clearance_m=None, physical_points_csv=None):

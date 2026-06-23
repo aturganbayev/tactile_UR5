@@ -17,9 +17,9 @@ from pose_utils import (
 )
 
 # --- Parameters ---
-NUM_STRIPS = 18             # number of strips evenly distributed around the cone
-NUM_POINTS = 12           # number of touch points per strip (top → bottom)
-MIN_HEIGHT_FRACTION = 0.4  # lower bound as a fraction of cone height
+NUM_STRIPS = 20             # number of strips evenly distributed around the cone
+NUM_POINTS = 10           # number of touch points per strip (top → bottom)
+MIN_HEIGHT_FRACTION = 0.35  # lower bound as a fraction of cone height
                             # (0.0 = base, 1.0 = apex). Kept high so the lowest
                             # band stays well above the base plane AND so the arm
                             # config (esp. on the near side, toward the robot
