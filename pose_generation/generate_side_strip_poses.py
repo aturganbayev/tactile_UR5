@@ -17,9 +17,9 @@ from pose_utils import (
 )
 
 # --- Parameters ---
-NUM_STRIPS = 15             # number of strips evenly distributed around the cone
-NUM_POINTS = 10           # number of touch points per strip (top → bottom)
-MIN_HEIGHT_FRACTION = 0.72  # lower bound as a fraction of cone height
+NUM_STRIPS = 18             # number of strips evenly distributed around the cone
+NUM_POINTS = 12           # number of touch points per strip (top → bottom)
+MIN_HEIGHT_FRACTION = 0.4  # lower bound as a fraction of cone height
                             # (0.0 = base, 1.0 = apex). Kept high so the lowest
                             # band stays well above the base plane AND so the arm
                             # config (esp. on the near side, toward the robot
@@ -198,15 +198,10 @@ def main():
     # --- Top view (looking straight down the cone axis) ---
     ax2d = fig.add_subplot(122)
     ax2d.scatter(P[:, 0], P[:, 1], c="dimgray", s=3, alpha=0.3)
-    L = 0.012   # arrow length (m) for the radial (X/Y) part of each normal
     for strip_idx, strip_angle_raw in enumerate(strip_angles):
         strip_df = poses_df[poses_df["strip"] == strip_idx]
         ax2d.scatter(strip_df["x"], strip_df["y"],
                      c=[colors[strip_idx]], s=40, zorder=5)
-        ax2d.quiver(strip_df["x"], strip_df["y"],
-                    strip_df["nx"] * L, strip_df["ny"] * L,
-                    color=colors[strip_idx], angles="xy",
-                    scale_units="xy", scale=1, width=0.004)
     ax2d.set_xlabel("X (m)"); ax2d.set_ylabel("Y (m)")
     ax2d.set_aspect("equal")
     ax2d.set_title("Top view (down cone axis)")

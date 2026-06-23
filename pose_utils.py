@@ -82,9 +82,9 @@ REAL_HOST = "192.168.0.110"
 # Transit moves are joint-space (movej): v is rad/s, a is rad/s^2. Sim is pushed
 # near the UR5 joint limit (~3.14 rad/s) since there's no hardware to protect.
 A_sim = 8.0
-A_real = 0.2
+A_real = 0.3
 V_sim = 3.0
-V_real = 0.4
+V_real = 0.6
 
 # Approach/contact speed: used only for the short press-into-surface and retract
 # moves. Kept slow so the tool eases onto the cone instead of knocking it away.
@@ -100,8 +100,8 @@ START_POSE_ROTVEC = np.array([-2.2, 2.2, 0.0])
 START_CLEARANCE_M = 0.01
 
 # Approach & press distance m
-approach_distance = 0.02
-press_distance = 0.02
+approach_distance = 0.015
+press_distance = 0.015
 
 # --------------------------------------------------------------------------- #
 #                            UR5 KINEMATICS (offline IK)                       #
@@ -180,8 +180,8 @@ in from above; MAX adds extra tilt low down for holder clearance. Raise
 MIN_ORIENTATION_TILT_DEG if the wrist still folds toward the forearm on the
 near-horizontal strips.
 """
-MIN_ORIENTATION_TILT_DEG = 5.0
-MAX_ORIENTATION_TILT_DEG = 15.0
+MIN_ORIENTATION_TILT_DEG = 0
+MAX_ORIENTATION_TILT_DEG = 0
 
 
 def apex_start_tcp_pose(clearance_m=None, physical_points_csv=None):
@@ -196,7 +196,7 @@ def apex_start_tcp_pose(clearance_m=None, physical_points_csv=None):
     if physical_points_csv is None:
         physical_points_csv = _DEFAULT_PHYSICAL_POINTS_CSV
 
-    default_tcp = np.array([0.002490, -0.513500, 0.1355])
+    default_tcp = np.array([0.002490, -0.513500, 0.21185])
     rotvec = START_POSE_ROTVEC.copy()
 
     try:

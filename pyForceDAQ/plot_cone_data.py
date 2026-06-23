@@ -75,16 +75,30 @@ def plot_speed_vs_time(traj, out_path):
     fig.savefig(out_path, dpi=200, bbox_inches="tight")
 
 
-def plot_trajectory_3d(traj, out_path):
+def plot_trajectory_3d(traj, out_path, contact_thresh=0.3, max_points=6000):
+    t = traj
+    # Drop the free-space return-to-start / inter-strip transit moves: those lift
+    # the tool well above the cone (and carry no force), cluttering the plot.
+    # Keep everything up to just above the highest in-contact height, so the
+    # press cycles and their local approach/retract remain.
+    contact = t[t["Fmag"] > contact_thresh]
+    if len(contact):
+        z_cap = contact["z"].max() + 0.01
+        t = t[t["z"] <= z_cap]
+    # Downsample so the 3D scatter stays responsive (the raw stream is ~125 Hz
+    # over the whole run -> hundreds of thousands of points).
+    if len(t) > max_points:
+        t = t.iloc[:: max(1, len(t) // max_points)]
+
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection="3d")
-    sc = ax.scatter(traj["x"], traj["y"], traj["z"], c=traj["Fmag"], cmap="inferno", s=3)
+    sc = ax.scatter(t["x"], t["y"], t["z"], c=t["Fmag"], cmap="inferno", s=4)
     fig.colorbar(sc, ax=ax, label="|F| (N)", shrink=0.6)
     ax.set_xlabel("X (m)")
     ax.set_ylabel("Y (m)")
     ax.set_zlabel("Z (m)")
-    ax.set_title("TCP trajectory colored by force magnitude")
-    set_equal_3d(ax, traj["x"], traj["y"], traj["z"])
+    ax.set_title(f"TCP trajectory near the cone, colored by |F|  ({len(t)} pts)")
+    set_equal_3d(ax, t["x"], t["y"], t["z"])
     fig.savefig(out_path, dpi=200, bbox_inches="tight")
 
 
