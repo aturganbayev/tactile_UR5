@@ -90,18 +90,18 @@ V_real = 0.6
 # moves. Kept slow so the tool eases onto the cone instead of knocking it away.
 # Tune V_approach_real down if the cone still shifts on contact.
 A_approach_sim = 2.5
-A_approach_real = 0.01
+A_approach_real = 0.02
 V_approach_sim = 1
-V_approach_real = 0.02
+V_approach_real = 0.04
 
 # Default orientation used when hovering above the cone apex.
 TOOL_TIP_OFFSET = np.array([0.0, 0.0, 0.086])
 START_POSE_ROTVEC = np.array([-2.2, 2.2, 0.0])
-START_CLEARANCE_M = 0.01
+START_CLEARANCE_M = 0.03
 
 # Approach & press distance m
 approach_distance = 0.015
-press_distance = 0.015
+press_distance = 0.02
 
 # --------------------------------------------------------------------------- #
 #                            UR5 KINEMATICS (offline IK)                       #

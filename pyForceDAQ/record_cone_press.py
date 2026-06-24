@@ -64,6 +64,13 @@ SENSOR_RATE = 500
 PRESS_ON_N = 0.5           # Fz rising above this starts a press
 PRESS_OFF_N = 0.3          # Fz falling below this ends the press
 MIN_PRESS_DURATION_S = 0.05  # ignore shorter blips as noise
+# Some cones embed a small hard ball (tumor phantom) under the outer silicone
+# shell. Pressing through the soft shell onto the ball gives a bimodal Fz
+# curve: it dips momentarily between the shell contact and the ball contact,
+# which would otherwise look like the press ending. Require Fz to stay below
+# PRESS_OFF_N for this long before the press is actually considered over, so
+# the dip between the two bumps doesn't get recorded as two separate presses.
+PRESS_OFF_DEBOUNCE_S = 0.3
 # After a press ends, ignore new presses for this long. As the robot retracts
 # it rebounds slightly, which can re-cross PRESS_ON and register a phantom
 # second press; real presses are several seconds apart (move + settle between
@@ -290,6 +297,7 @@ def main():
     peak = None          # dict captured at max Fz of the current press
     press_start_t = 0.0
     last_press_end_t = 0.0   # for the refractory window
+    off_since = None         # when Fz first dropped below PRESS_OFF_N (debounce)
 
     try:
         next_t = time.perf_counter()
@@ -312,6 +320,7 @@ def main():
                 if fz >= PRESS_ON_N and (now - last_press_end_t) >= PRESS_REFRACTORY_S:
                     in_press = True
                     press_start_t = now
+                    off_since = None
                     peak = {"fz": fz, "f": (fx, fy, fz), "fmag": fmag,
                             "pose": pose, "t": now}
             else:
@@ -319,20 +328,26 @@ def main():
                     peak = {"fz": fz, "f": (fx, fy, fz), "fmag": fmag,
                             "pose": pose, "t": now}
                 if fz <= PRESS_OFF_N:
-                    if (now - press_start_t) >= MIN_PRESS_DURATION_S:
-                        press_count += 1
-                        p = peak["pose"] if peak["pose"] is not None else [float("nan")] * 6
-                        press_w.writerow([press_count, f"{peak['t']:.6f}",
-                                          f"{peak['fz']:.4f}", f"{peak['fmag']:.4f}",
-                                          *[f"{v:.4f}" for v in peak["f"]],
-                                          *[f"{v:.6f}" for v in p]])
-                        press_file.flush()
-                        print(f"Press {press_count:>3}: peak Fz = {peak['fz']:.2f} N "
-                              f"(|F| = {peak['fmag']:.2f} N) at "
-                              f"TCP=[{p[0]:.4f}, {p[1]:.4f}, {p[2]:.4f}]")
-                    in_press = False
-                    last_press_end_t = now
-                    peak = None
+                    if off_since is None:
+                        off_since = now
+                    elif (now - off_since) >= PRESS_OFF_DEBOUNCE_S:
+                        if (now - press_start_t) >= MIN_PRESS_DURATION_S:
+                            press_count += 1
+                            p = peak["pose"] if peak["pose"] is not None else [float("nan")] * 6
+                            press_w.writerow([press_count, f"{peak['t']:.6f}",
+                                              f"{peak['fz']:.4f}", f"{peak['fmag']:.4f}",
+                                              *[f"{v:.4f}" for v in peak["f"]],
+                                              *[f"{v:.6f}" for v in p]])
+                            press_file.flush()
+                            print(f"Press {press_count:>3}: peak Fz = {peak['fz']:.2f} N "
+                                  f"(|F| = {peak['fmag']:.2f} N) at "
+                                  f"TCP=[{p[0]:.4f}, {p[1]:.4f}, {p[2]:.4f}]")
+                        in_press = False
+                        last_press_end_t = now
+                        peak = None
+                        off_since = None
+                else:
+                    off_since = None  # Fz back above PRESS_OFF_N - reset the debounce
 
             # pace the loop
             next_t += period
