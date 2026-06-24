@@ -70,7 +70,7 @@ MIN_PRESS_DURATION_S = 0.05  # ignore shorter blips as noise
 # which would otherwise look like the press ending. Require Fz to stay below
 # PRESS_OFF_N for this long before the press is actually considered over, so
 # the dip between the two bumps doesn't get recorded as two separate presses.
-PRESS_OFF_DEBOUNCE_S = 0.3
+PRESS_OFF_DEBOUNCE_S = 0.5
 # After a press ends, ignore new presses for this long. As the robot retracts
 # it rebounds slightly, which can re-cross PRESS_ON and register a phantom
 # second press; real presses are several seconds apart (move + settle between
