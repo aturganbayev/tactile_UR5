@@ -12,7 +12,7 @@ cone.STL → surface points → ICP calibration → touch poses → robot execut
 
 | Component | Details |
 |---|---|
-| Robot | Universal Robots UR5 |
+| Robot | Universal Robots UR5 (CB2 controller, PolyScope 1.x) |
 | Tool | Silicone cone tactile sensor |
 | Tool tip offset | 86 mm along TCP +Z axis |
 | Force sensor | ATI Nano17 (SI-50-0.5), serial `FT12876` |
@@ -179,7 +179,7 @@ Each contact point is **synthesized directly on the strip's meridian** rather th
 - **Even spacing** — points are placed at evenly-spaced heights (band centres), with the local cone radius from a linear fit of the band's measured points.
 - **Clean normals** — the surface normal is taken from the nearest measured point, projected into the meridian plane and forced outward (handles the apex too).
 
-To keep the printed sensor holder clear of the cone and the wrist clear of the lower arm, the tool orientation is tilted toward vertical with a height-scaled magnitude: `MIN_ORIENTATION_TILT_DEG` (5°) at the apex band up to `MAX_ORIENTATION_TILT_DEG` (15°) at the lowest band. **Only the orientation tilts** — the contact point and press direction stay on the true surface normal — so the press stays near-perpendicular (≈5–15° off-normal). The applied tilt is recorded per pose in the `tilt_deg` CSV column.
+To keep the printed sensor holder clear of the cone and the wrist clear of the lower arm, the tool orientation is tilted toward vertical with a height-scaled magnitude: `MIN_ORIENTATION_TILT_DEG` (7°) at the apex band up to `MAX_ORIENTATION_TILT_DEG` (14°) at the lowest band. **Only the orientation tilts** — the contact point and press direction stay on the true surface normal — so the press stays near-perpendicular (≈5–15° off-normal). The applied tilt is recorded per pose in the `tilt_deg` CSV column.
 
 ```bash
 python pose_generation/generate_side_strip_poses.py
@@ -195,11 +195,11 @@ Key parameters at the top of the script:
 
 | Parameter | Default | Description |
 |---|---|---|
-| `NUM_STRIPS` | `15` | Strips evenly distributed around the cone |
+| `NUM_STRIPS` | `20` | Strips evenly distributed around the cone |
 | `NUM_POINTS` | `10` | Touch points per strip (top → bottom) |
-| `MIN_HEIGHT_FRACTION` | `0.72` | Lower bound of the strips (fraction of cone height). Kept high so the lowest band stays clear of the base plane **and** so the arm config keeps the wrist joints off the table (esp. on the near side toward the robot base). Lower it for more lower-cone coverage, at the cost of clearance. |
+| `MIN_HEIGHT_FRACTION` | `0.35` | Lower bound of the strips (fraction of cone height). Lower it for more lower-cone coverage, at the cost of clearance (arm config keeps the wrist joints off the table, esp. on the near side toward the robot base). |
 
-Both `NUM_STRIPS` and `NUM_POINTS` are free to change; the generator and executor adapt automatically. Each row in all pose CSVs contains a paired approach pose (`approach_distance` = 20 mm stand-off along the surface normal) and a press pose (`press_distance` = 20 mm into the surface).
+Both `NUM_STRIPS` and `NUM_POINTS` are free to change; the generator and executor adapt automatically. Each row in all pose CSVs contains a paired approach pose (`approach_distance` = 15 mm stand-off along the surface normal) and a press pose (`press_distance` = 20 mm into the surface).
 
 ---
 
@@ -338,6 +338,30 @@ Sends `stopl(2.5)` directly to the real robot (`REAL_HOST` in `pose_utils.py`, `
 
 ---
 
+### Shutdown
+
+Returns to the home configuration, then powers down the controller. Prompts for `sim`/`real`; `real` requires typing `yes` to confirm before sending.
+
+```bash
+python execution/shutdown_robot.py
+```
+
+---
+
+### Live monitoring (CB2 controllers)
+
+This robot is a **CB2** controller (PolyScope 1.x) — it has no Dashboard Server (introduced in CB3), so there's no scripted way to read robot state/logs through that interface. The pendant's Log tab is fed live from a Robot Message stream on the **Primary client interface (port 30001)**; the on-disk log file (`/root/log_history.txt` on the controller) is only flushed at boot/shutdown boundaries, so tailing it over SSH misses everything in between, including `textmsg()` calls from a running program.
+
+`watch_robot_messages.py` connects directly to port 30001 and decodes that live stream, mirroring what the pendant shows in real time (mode changes, protective/E-stop events, and the per-pose `textmsg` calls from `run_side_strip_poses.py`):
+
+```bash
+python execution/watch_robot_messages.py
+```
+
+Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/robot_logs/<timestamp>_messages.log`. Ctrl-C to stop. Run it in a separate terminal alongside any motion script to track progress and catch a protective stop the instant it happens.
+
+---
+
 ## File Reference
 
 | File | Description |
@@ -359,6 +383,8 @@ Sends `stopl(2.5)` directly to the real robot (`REAL_HOST` in `pose_utils.py`, `
 | `execution/start_pose.py` | Move robot directly to start pose |
 | `execution/go_home.py` | Return robot to home configuration |
 | `execution/stop_robot.py` | Emergency stop |
+| `execution/shutdown_robot.py` | Return home, then power down the controller (`real` requires confirmation) |
+| `execution/watch_robot_messages.py` | Live-decode the Robot Message stream (port 30001) — mirrors the pendant's Log tab in real time |
 | `pyForceDAQ/record_cone_press.py` | Record Nano17 force + UR5 TCP pose; auto-detect each press and log its peak force with the pose at that instant |
 | `pyForceDAQ/sync_cone_data.sh` | Copy recordings from the remote DAQ PC (sshfs mount) into the local repo |
 | `pyForceDAQ/calibration/` | ATI sensor calibration files (`FT12876` = Nano17, `FT12877`) |
