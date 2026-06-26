@@ -18,3 +18,6 @@ figures/*_press_force_on_cone.png
 *.csv
 *.csv.gz
 !physical_points.csv
+
+# Robot terminal logs
+execution/robot_logs/

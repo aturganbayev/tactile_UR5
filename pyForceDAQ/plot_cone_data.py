@@ -155,7 +155,7 @@ def cone_surface():
     return pd.read_csv(paths.SURFACE_POINTS_BASE)
 
 
-def plot_trajectory_3d(traj, out_path=None, presses=None, contact_thresh=0.3, max_points=6000, ax=None, title=None, top_n=20):
+def plot_trajectory_3d(traj, out_path=None, presses=None, contact_thresh=0.3, max_points=6000, ax=None, title=None, top_n=24):
     if ax is None:
         fig = plt.figure(figsize=(8, 8))
         ax = fig.add_subplot(111, projection="3d")
@@ -164,15 +164,32 @@ def plot_trajectory_3d(traj, out_path=None, presses=None, contact_thresh=0.3, ma
 
     if presses is not None and len(presses) > 0:
         runs = trajectory_runs(traj, presses, contact_thresh=contact_thresh)
-        top_presses = set(presses.nlargest(top_n, "peak_Fz")["press"].astype(int))
+        ranked = presses.sort_values("peak_Fz", ascending=False)
+        top_presses = set(ranked["press"].iloc[:top_n].astype(int))
+        second_presses = set(ranked["press"].iloc[top_n:2 * top_n].astype(int))
         all_x, all_y, all_z = [], [], []
+        seen_tier_label = set()
         for run in runs:
-            is_top = run["press"] in top_presses
+            if run["press"] in top_presses:
+                tier = "top"
+            elif run["press"] in second_presses:
+                tier = "second"
+            else:
+                tier = "rest"
+            color = {"top": "gold", "second": "cyan", "rest": "black"}[tier]
+            linewidth = {"top": 2.6, "second": 1.8, "rest": 1.0}[tier]
+            alpha = {"top": 1.0, "second": 0.85, "rest": 0.5}[tier]
             x, y, z = run["x"][-1], run["y"][-1], run["z"][-1]
-            label = f"#{run['press']} @ ({x:.3f}, {y:.3f}, {z:.3f}) m, Fz={run['peak_Fz']:.2f} N" if is_top else None
-            ax.plot(run["x"], run["y"], run["z"], color="gold" if is_top else "black",
-                    linewidth=2.6 if is_top else 1.0, alpha=1.0 if is_top else 0.5, label=label)
-            if is_top:
+            if tier == "top":
+                label = f"#{run['press']} @ ({x:.3f}, {y:.3f}, {z:.3f}) m, Fz={run['peak_Fz']:.2f} N"
+            elif tier not in seen_tier_label:
+                label = {"second": f"Next {top_n} touches by force", "rest": "Approach path"}[tier]
+                seen_tier_label.add(tier)
+            else:
+                label = None
+            ax.plot(run["x"], run["y"], run["z"], color=color,
+                    linewidth=linewidth, alpha=alpha, label=label)
+            if tier == "top":
                 ax.text(x, y, z, f"#{run['press']}", fontsize=7, color="red", weight="bold")
             all_x.append(run["x"])
             all_y.append(run["y"])
@@ -209,10 +226,13 @@ def plot_peak_force_per_press(presses, out_path):
     fig.savefig(out_path, dpi=200, bbox_inches="tight")
 
 
-def plot_press_force_on_cone(presses, out_path=None, ax=None, title=None, top_n=20):
+def plot_press_force_on_cone(presses, out_path=None, ax=None, title=None, top_n=24):
     surface = cone_surface()
     tips = pose_to_tips(presses)
-    top_mask = (presses["peak_Fz"].rank(method="first", ascending=False) <= top_n).to_numpy()
+    rank = presses["peak_Fz"].rank(method="first", ascending=False)
+    top_mask = (rank <= top_n).to_numpy()
+    second_mask = ((rank > top_n) & (rank <= 2 * top_n)).to_numpy()
+    rest_mask = ~(top_mask | second_mask)
     vmin, vmax = presses["peak_Fz"].min(), presses["peak_Fz"].max()
 
     if ax is None:
@@ -222,9 +242,13 @@ def plot_press_force_on_cone(presses, out_path=None, ax=None, title=None, top_n=
         fig = ax.figure
     ax.scatter(surface["x"], surface["y"], surface["z"],
                c="lightgray", s=2, alpha=0.3, label="Cone surface")
-    sc = ax.scatter(tips[~top_mask, 0], tips[~top_mask, 1], tips[~top_mask, 2],
-                     c=presses.loc[~top_mask, "peak_Fz"], cmap="inferno", s=60,
+    sc = ax.scatter(tips[rest_mask, 0], tips[rest_mask, 1], tips[rest_mask, 2],
+                     c=presses.loc[rest_mask, "peak_Fz"], cmap="inferno", s=60,
                      vmin=vmin, vmax=vmax, edgecolors="k", linewidths=0.5)
+    ax.scatter(tips[second_mask, 0], tips[second_mask, 1], tips[second_mask, 2],
+               c=presses.loc[second_mask, "peak_Fz"], cmap="inferno", s=130,
+               vmin=vmin, vmax=vmax, marker="^", edgecolors="blue", linewidths=1.0,
+               label=f"Next {top_n} Fz")
     ax.scatter(tips[top_mask, 0], tips[top_mask, 1], tips[top_mask, 2],
                c=presses.loc[top_mask, "peak_Fz"], cmap="inferno", s=220,
                vmin=vmin, vmax=vmax, marker="*", edgecolors="red", linewidths=1.2,
@@ -255,7 +279,7 @@ _COLORBAR_LAYOUT = dict(len=0.7, y=0.4, yanchor="middle", x=1.02)
 
 
 def save_trajectory_3d_html(traj, out_path, presses=None, contact_thresh=0.3, max_points=4000,
-                             surface_max_points=1200, title=None, top_n=20):
+                             surface_max_points=1200, title=None, top_n=24):
     """WebGL-accelerated equivalent of plot_trajectory_3d - opens in any browser,
     stays interactive (rotate/zoom/pan) without rerunning Python."""
     surface = cone_surface()
@@ -271,21 +295,35 @@ def save_trajectory_3d_html(traj, out_path, presses=None, contact_thresh=0.3, ma
 
     if presses is not None and len(presses) > 0:
         runs = trajectory_runs(traj, presses, contact_thresh=contact_thresh)
-        top_presses = set(presses.nlargest(top_n, "peak_Fz")["press"].astype(int))
+        ranked = presses.sort_values("peak_Fz", ascending=False)
+        top_presses = set(ranked["press"].iloc[:top_n].astype(int))
+        second_presses = set(ranked["press"].iloc[top_n:2 * top_n].astype(int))
+        shown_group = set()
         for run in runs:
-            is_top = run["press"] in top_presses
+            if run["press"] in top_presses:
+                tier = "top"
+            elif run["press"] in second_presses:
+                tier = "second"
+            else:
+                tier = "rest"
+            color = {"top": "gold", "second": "cyan", "rest": "black"}[tier]
+            width = {"top": 6, "second": 4, "rest": 2}[tier]
+            opacity = {"top": 1.0, "second": 0.85, "rest": 0.5}[tier]
             x, y, z = run["x"][-1], run["y"][-1], run["z"][-1]
             customdata = np.tile([run["press"], run["peak_Fz"], run["peak_Fmag"]], (len(run["x"]), 1))
-            name = (
-                f"#{run['press']} @ ({x:.3f}, {y:.3f}, {z:.3f}) m, Fz={run['peak_Fz']:.2f} N"
-                if is_top else "Approach path"
-            )
+            if tier == "top":
+                name = f"#{run['press']} @ ({x:.3f}, {y:.3f}, {z:.3f}) m, Fz={run['peak_Fz']:.2f} N"
+                show = True
+            else:
+                name = {"second": f"Next {top_n} touches by force", "rest": "Approach path"}[tier]
+                show = tier not in shown_group
+                shown_group.add(tier)
             traces.append(go.Scatter3d(
                 x=run["x"], y=run["y"], z=run["z"], mode="lines",
-                line=dict(color="gold" if is_top else "black", width=6 if is_top else 2),
+                line=dict(color=color, width=width),
                 name=name,
-                showlegend=is_top, legendgroup="top" if is_top else "rest",
-                opacity=1.0 if is_top else 0.5,
+                showlegend=show, legendgroup=tier,
+                opacity=opacity,
                 customdata=customdata,
                 hovertemplate=(
                     "Press #%{customdata[0]:.0f}<br>"
@@ -294,7 +332,7 @@ def save_trajectory_3d_html(traj, out_path, presses=None, contact_thresh=0.3, ma
                     "peak |F| = %{customdata[2]:.2f} N<extra></extra>"
                 ),
             ))
-            if is_top:
+            if tier == "top":
                 traces.append(go.Scatter3d(
                     x=[run["x"][-1]], y=[run["y"][-1]], z=[run["z"][-1]], mode="markers+text",
                     marker=dict(size=5, color="red", symbol="diamond"),
@@ -326,13 +364,16 @@ def save_trajectory_3d_html(traj, out_path, presses=None, contact_thresh=0.3, ma
     fig.write_html(out_path, include_plotlyjs="cdn")
 
 
-def save_press_force_on_cone_html(presses, out_path, surface_max_points=1200, title=None, top_n=20):
+def save_press_force_on_cone_html(presses, out_path, surface_max_points=1200, title=None, top_n=24):
     """WebGL-accelerated equivalent of plot_press_force_on_cone."""
     surface = cone_surface()
     if len(surface) > surface_max_points:
         surface = surface.iloc[:: max(1, len(surface) // surface_max_points)]
     tips = pose_to_tips(presses)
-    top_mask = (presses["peak_Fz"].rank(method="first", ascending=False) <= top_n).to_numpy()
+    rank = presses["peak_Fz"].rank(method="first", ascending=False)
+    top_mask = (rank <= top_n).to_numpy()
+    second_mask = ((rank > top_n) & (rank <= 2 * top_n)).to_numpy()
+    rest_mask = ~(top_mask | second_mask)
     vmin, vmax = presses["peak_Fz"].min(), presses["peak_Fz"].max()
 
     def press_trace(mask, name, symbol, size, line_width, showscale):
@@ -362,7 +403,8 @@ def save_press_force_on_cone_html(presses, out_path, surface_max_points=1200, ti
             marker=dict(size=2, color="dimgray", opacity=0.5), name="Cone surface",
             hoverinfo="skip",
         ),
-        press_trace(~top_mask, "Presses", "circle", 6, 0.5, True),
+        press_trace(rest_mask, "Presses", "circle", 6, 0.5, True),
+        press_trace(second_mask, f"Next {top_n} Fz", "square", 9, 1.5, False),
         press_trace(top_mask, f"Top {top_n} Fz", "diamond", 10, 2, False),
     ])
     default_title = (
