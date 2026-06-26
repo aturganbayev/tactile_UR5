@@ -17,8 +17,8 @@ from pose_utils import (
 )
 
 # --- Parameters ---
-NUM_STRIPS = 20             # number of strips evenly distributed around the cone
-NUM_POINTS = 10           # number of touch points per strip (top → bottom)
+NUM_STRIPS = 24             # number of strips evenly distributed around the cone
+NUM_POINTS = 12           # number of touch points per strip (top → bottom)
 MIN_HEIGHT_FRACTION = 0.35  # lower bound as a fraction of cone height
                             # (0.0 = base, 1.0 = apex). Kept high so the lowest
                             # band stays well above the base plane AND so the arm
@@ -85,7 +85,11 @@ def main():
         return
 
     strip_angles = np.linspace(0, 360, NUM_STRIPS, endpoint=False)
-    t_bins = np.linspace(t_max, t_lower, NUM_POINTS + 1)
+    # Evenly-spaced target heights INCLUDING the endpoints, so the first point
+    # of every strip sits right at the true apex (t_max) instead of at the
+    # centre of the topmost band (which left it offset by half a band width).
+    t_targets = np.linspace(t_max, t_lower, NUM_POINTS)
+    half_band = (t_max - t_lower) / max(NUM_POINTS - 1, 1) / 2.0
 
     all_poses = []
     for strip_idx, strip_angle_raw in enumerate(strip_angles):
@@ -99,8 +103,8 @@ def main():
         # Every strip runs top→bottom; the execution script retracts to the
         # apex/start pose between strips, so direction doesn't need to match.
         for i in range(NUM_POINTS):
-            t_hi, t_lo = t_bins[i], t_bins[i + 1]
-            t_c = 0.5 * (t_hi + t_lo)   # evenly-spaced target height (band centre)
+            t_c = t_targets[i]   # evenly-spaced target height, apex to t_lower
+            t_hi, t_lo = t_c + half_band, t_c - half_band
             band = df_height[(df_height["t"] <= t_hi) & (df_height["t"] >= t_lo)]
             if len(band) == 0:
                 continue

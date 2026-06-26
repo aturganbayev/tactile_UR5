@@ -60,14 +60,17 @@ BIAS_SAMPLES = 500
 # this further (e.g. 250) if the overrun recurs on a loaded machine.
 SENSOR_RATE = 500
 
-# Press detection on Fz (Newtons). Hysteresis prevents flicker.
-PRESS_ON_N = 0.5           # Fz rising above this starts a press
-PRESS_OFF_N = 0.3          # Fz falling below this ends the press
+# Press detection on Fmag = |F| (Newtons). Hysteresis prevents flicker.
+# Using the magnitude rather than signed Fz catches contact even where the
+# local surface normal isn't aligned with the sensor's Z axis (e.g. near the
+# cone's embedded bulge), which can load mostly Fx/Fy with Fz negative.
+PRESS_ON_N = 0.5           # Fmag rising above this starts a press
+PRESS_OFF_N = 0.3          # Fmag falling below this ends the press
 MIN_PRESS_DURATION_S = 0.05  # ignore shorter blips as noise
 # Some cones embed a small hard ball (tumor phantom) under the outer silicone
-# shell. Pressing through the soft shell onto the ball gives a bimodal Fz
+# shell. Pressing through the soft shell onto the ball gives a bimodal force
 # curve: it dips momentarily between the shell contact and the ball contact,
-# which would otherwise look like the press ending. Require Fz to stay below
+# which would otherwise look like the press ending. Require Fmag to stay below
 # PRESS_OFF_N for this long before the press is actually considered over, so
 # the dip between the two bumps doesn't get recorded as two separate presses.
 PRESS_OFF_DEBOUNCE_S = 0.5
@@ -75,7 +78,7 @@ PRESS_OFF_DEBOUNCE_S = 0.5
 # it rebounds slightly, which can re-cross PRESS_ON and register a phantom
 # second press; real presses are several seconds apart (move + settle between
 # touch points), so this window removes rebounds without dropping real presses.
-PRESS_REFRACTORY_S = 2.0
+PRESS_REFRACTORY_S = 4.0
 
 # Logging loop rate (the UR stream is ~125 Hz)
 LOOP_HZ = 125
@@ -315,19 +318,25 @@ def main():
                                  f"{fx:.4f}", f"{fy:.4f}", f"{fz:.4f}",
                                  f"{fmag:.4f}"])
 
-            # --- press state machine (on Fz) ------------------------------- #
+            # --- press state machine (on Fmag) ------------------------------ #
+            # Thresholding on signed Fz alone misses real contact in regions
+            # where the local surface normal isn't aligned with the sensor's Z
+            # axis (e.g. near the cone's embedded bulge): a touch there can load
+            # mostly Fx/Fy with Fz negative, never crossing a positive Fz
+            # threshold even though |F| is well above it. Fmag is sign-agnostic
+            # and catches contact regardless of which axis it loads.
             if not in_press:
-                if fz >= PRESS_ON_N and (now - last_press_end_t) >= PRESS_REFRACTORY_S:
+                if fmag >= PRESS_ON_N and (now - last_press_end_t) >= PRESS_REFRACTORY_S:
                     in_press = True
                     press_start_t = now
                     off_since = None
                     peak = {"fz": fz, "f": (fx, fy, fz), "fmag": fmag,
                             "pose": pose, "t": now}
             else:
-                if fz > peak["fz"]:
+                if fmag > peak["fmag"]:
                     peak = {"fz": fz, "f": (fx, fy, fz), "fmag": fmag,
                             "pose": pose, "t": now}
-                if fz <= PRESS_OFF_N:
+                if fmag <= PRESS_OFF_N:
                     if off_since is None:
                         off_since = now
                     elif (now - off_since) >= PRESS_OFF_DEBOUNCE_S:
@@ -347,7 +356,7 @@ def main():
                         peak = None
                         off_since = None
                 else:
-                    off_since = None  # Fz back above PRESS_OFF_N - reset the debounce
+                    off_since = None  # Fmag back above PRESS_OFF_N - reset the debounce
 
             # pace the loop
             next_t += period

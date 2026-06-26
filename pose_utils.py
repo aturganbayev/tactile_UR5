@@ -82,9 +82,9 @@ REAL_HOST = "192.168.0.110"
 # Transit moves are joint-space (movej): v is rad/s, a is rad/s^2. Sim is pushed
 # near the UR5 joint limit (~3.14 rad/s) since there's no hardware to protect.
 A_sim = 8.0
-A_real = 0.3
+A_real = 0.35
 V_sim = 3.0
-V_real = 0.6
+V_real = 0.7
 
 # Approach/contact speed: used only for the short press-into-surface and retract
 # moves. Kept slow so the tool eases onto the cone instead of knocking it away.
@@ -101,7 +101,7 @@ START_CLEARANCE_M = 0.03
 
 # Approach & press distance m
 approach_distance = 0.015
-press_distance = 0.02
+press_distance = 0.015
 
 # --------------------------------------------------------------------------- #
 #                            UR5 KINEMATICS (offline IK)                       #
