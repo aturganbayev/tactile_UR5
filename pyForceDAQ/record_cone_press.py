@@ -280,21 +280,32 @@ class LiveHtmlPlot:
         # script - useless (and on a pure-SSH session, often silently a
         # no-op) if you're recording on the remote DAQ PC and watching from a
         # different machine. Only try it when a local display is actually
-        # present; otherwise just point at the file so it can be opened from
-        # wherever it's mounted (e.g. via sshfs on the viewing machine).
+        # present; either way, always print the path to open on a *viewing*
+        # machine (computed from this repo's actual layout, not hardcoded)
+        # through that machine's sshfs mount of this PC, so it can just be
+        # copy-pasted into a terminal/file manager there.
         abs_path = os.path.abspath(self.out_path)
-        if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        try:
+            rel_path = os.path.relpath(abs_path, paths.ROOT)
+        except ValueError:
+            rel_path = None
+        remote_view_path = f"~/remote-server/{rel_path}" if rel_path else None
+
+        have_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+        if have_display:
+            import webbrowser
+            try:
+                webbrowser.open(f"file://{abs_path}")
+            except Exception as e:
+                print(f"  [warn] could not auto-open live plot ({e}); open it manually:")
+                print(f"    {abs_path}")
+        else:
             print("  No local display detected - not auto-opening a browser.")
             print(f"  Live plot file: {abs_path}")
-            print("  Viewing from another machine? Open it through that machine's")
-            print("  mount of this PC, e.g. ~/remote-server/pyForceDAQ/cone_data/live_view.html")
-            return
-        import webbrowser
-        try:
-            webbrowser.open(f"file://{abs_path}")
-        except Exception as e:
-            print(f"  [warn] could not auto-open live plot ({e}); open it manually:")
-            print(f"    {abs_path}")
+
+        if remote_view_path:
+            print(f"  Viewing from another machine? Open this path there:")
+            print(f"    {remote_view_path}")
 
     def add_sample(self, tip_xyz):
         self._sample_count += 1
