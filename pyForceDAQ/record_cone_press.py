@@ -104,12 +104,14 @@ LIVE_PLOT_REFRESH_S = 1.0          # render + browser poll interval
 LIVE_PLOT_DECIMATE = 15            # keep 1 of every N trajectory samples in the view
 LIVE_PLOT_MAX_POINTS = 1500        # rolling window of recent trajectory points shown
 LIVE_PLOT_SURFACE_MAX_POINTS = 800  # cone surface points shown (it's WebGL - more = slower GPU)
-# Auto-open a browser tab on THIS machine when recording starts. Turn this off
-# if you're recording on a weak/headless DAQ PC and only ever viewing the
-# live plot remotely (see the printed LAN URL) - there's no point rendering
-# WebGL locally on a machine nobody is looking at, and on weak/virtual GPUs
-# that local browser can itself be the thing lagging, not the plot/network.
-LIVE_PLOT_AUTO_OPEN = True
+# Auto-open a browser tab on THIS machine when recording starts. Defaults to
+# off: this is normally run on a DAQ PC, and WebGL (which Plotly's 3D plots
+# need) often has no real GPU acceleration there - Chrome will visibly stall
+# ("GPU stall due to ReadPixels" in its logs) no matter how few points are
+# plotted. View the live plot from a capable machine instead, using the LAN
+# URL this script prints. Set this True if you're recording on a machine with
+# a real GPU and do want it to open locally too.
+LIVE_PLOT_AUTO_OPEN = False
 
 # UR real-time packet layout (port 30003, big-endian).
 #
