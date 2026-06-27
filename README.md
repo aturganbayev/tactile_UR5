@@ -274,6 +274,11 @@ sudo cp atidaq.so /usr/lib/atidaq.so
 
 # 2. Install the NI-DAQ Python backend (requires the NI-DAQmx driver)
 pip install nidaqmx
+
+# 3. Install plotly (renders the live trajectory/press view; see "Live plot" below).
+# Without it, record_cone_press.py prints a warning and keeps recording fine,
+# just without the live HTML view.
+pip install plotly
 ```
 
 The sensor calibration file `pyForceDAQ/calibration/FT12876.cal` (the Nano17) is tracked in git, so a fresh checkout already has it. If your transducer has a different serial, drop its ATI `.cal` into `pyForceDAQ/calibration/` and update `SENSOR_NAME` in `record_cone_press.py`.
