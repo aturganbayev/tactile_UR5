@@ -276,15 +276,25 @@ class LiveHtmlPlot:
         self._open_in_browser()
 
     def _open_in_browser(self):
-        # Open once, here, so the page is already loaded (and its own meta
-        # refresh keeps it live) instead of relying on the user to find and
-        # open the file manually.
+        # webbrowser.open() launches a browser on whatever machine runs this
+        # script - useless (and on a pure-SSH session, often silently a
+        # no-op) if you're recording on the remote DAQ PC and watching from a
+        # different machine. Only try it when a local display is actually
+        # present; otherwise just point at the file so it can be opened from
+        # wherever it's mounted (e.g. via sshfs on the viewing machine).
+        abs_path = os.path.abspath(self.out_path)
+        if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+            print("  No local display detected - not auto-opening a browser.")
+            print(f"  Live plot file: {abs_path}")
+            print("  Viewing from another machine? Open it through that machine's")
+            print("  mount of this PC, e.g. ~/remote-server/pyForceDAQ/cone_data/live_view.html")
+            return
         import webbrowser
         try:
-            webbrowser.open(f"file://{os.path.abspath(self.out_path)}")
+            webbrowser.open(f"file://{abs_path}")
         except Exception as e:
             print(f"  [warn] could not auto-open live plot ({e}); open it manually:")
-            print(f"    {os.path.abspath(self.out_path)}")
+            print(f"    {abs_path}")
 
     def add_sample(self, tip_xyz):
         self._sample_count += 1
