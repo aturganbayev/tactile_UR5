@@ -273,6 +273,18 @@ class LiveHtmlPlot:
         self._render()   # fail fast here (e.g. bad out_path) before starting the thread
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
+        self._open_in_browser()
+
+    def _open_in_browser(self):
+        # Open once, here, so the page is already loaded (and its own meta
+        # refresh keeps it live) instead of relying on the user to find and
+        # open the file manually.
+        import webbrowser
+        try:
+            webbrowser.open(f"file://{os.path.abspath(self.out_path)}")
+        except Exception as e:
+            print(f"  [warn] could not auto-open live plot ({e}); open it manually:")
+            print(f"    {os.path.abspath(self.out_path)}")
 
     def add_sample(self, tip_xyz):
         self._sample_count += 1
