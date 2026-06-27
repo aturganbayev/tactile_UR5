@@ -26,11 +26,14 @@ import functools
 import http.server
 import math
 import os
+import posixpath
 import socket
+import socketserver
 import struct
 import sys
 import threading
 import time
+import urllib.parse
 from collections import deque
 from time import strftime, localtime
 
@@ -267,8 +270,35 @@ def _guess_lan_ip():
 
 
 class _QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    """SimpleHTTPRequestHandler that serves a fixed directory and stays
+    quiet. Implemented without the `directory=` constructor kwarg, since
+    that (like http.server.ThreadingHTTPServer, see _ThreadingHTTPServer
+    below) only exists on Python >= 3.7 - the DAQ PC has been seen running
+    an older python3."""
+
+    def __init__(self, *args, **kwargs):
+        self._serve_directory = kwargs.pop("directory")
+        http.server.SimpleHTTPRequestHandler.__init__(self, *args, **kwargs)
+
     def log_message(self, format, *args):
         pass   # don't spam the recording terminal with HTTP access logs
+
+    def translate_path(self, path):
+        # Same logic as the stdlib version, just rooted at
+        # self._serve_directory instead of os.getcwd().
+        path = path.split("?", 1)[0].split("#", 1)[0]
+        path = posixpath.normpath(urllib.parse.unquote(path))
+        new_path = self._serve_directory
+        for word in filter(None, path.split("/")):
+            if os.path.dirname(word) or word in (os.curdir, os.pardir):
+                continue
+            new_path = os.path.join(new_path, word)
+        return new_path
+
+
+class _ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
 
 
 _LIVE_PLOT_HTML = """<!DOCTYPE html>
@@ -334,7 +364,7 @@ class LiveHtmlPlot:
         last_err = None
         for port in range(LIVE_PLOT_PORT, LIVE_PLOT_PORT + 10):
             try:
-                httpd = http.server.ThreadingHTTPServer(("0.0.0.0", port), handler)
+                httpd = _ThreadingHTTPServer(("0.0.0.0", port), handler)
                 break
             except OSError as e:
                 last_err = e
