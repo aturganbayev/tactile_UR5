@@ -100,10 +100,10 @@ LOOP_HZ = 125
 # the page's fetch() of the JSON isn't blocked by browser same-origin rules.
 LIVE_PLOT = True
 LIVE_PLOT_PORT = 8765              # local HTTP server port (first free at/after this)
-LIVE_PLOT_REFRESH_S = 1.0          # render + browser poll interval
-LIVE_PLOT_DECIMATE = 15            # keep 1 of every N trajectory samples in the view
-LIVE_PLOT_MAX_POINTS = 1500        # rolling window of recent trajectory points shown
-LIVE_PLOT_SURFACE_MAX_POINTS = 800  # cone surface points shown (it's WebGL - more = slower GPU)
+LIVE_PLOT_REFRESH_S = 0.3          # render + browser poll interval
+LIVE_PLOT_DECIMATE = 5             # keep 1 of every N trajectory samples in the view
+LIVE_PLOT_MAX_POINTS = 3000        # rolling window of recent trajectory points shown
+LIVE_PLOT_SURFACE_MAX_POINTS = 1500  # cone surface points shown (it's WebGL - more = slower GPU)
 # Auto-open a browser tab on THIS machine when recording starts. Defaults to
 # off: this is normally run on a DAQ PC, and WebGL (which Plotly's 3D plots
 # need) often has no real GPU acceleration there - Chrome will visibly stall
@@ -366,6 +366,7 @@ class LiveHtmlPlot:
         self._press_pts = []   # (x, y, z, press_num, peak_fz)
         self._sample_count = 0
         self._surface = _load_surface_points()
+        self._axis_range = self._compute_axis_range()
         self._stop_event = threading.Event()
 
         with open(self.html_path, "w") as f:
@@ -376,6 +377,17 @@ class LiveHtmlPlot:
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         self._announce()
+
+    def _compute_axis_range(self, margin=0.06):
+        """Fixed (x, y, z) axis ranges around the cone, computed once from
+        the calibrated surface, padded enough to cover typical approach/press
+        motion around it. Without this, axis ranges auto-fit to the *current*
+        trajectory data and shift on every render as the path grows - which
+        fights the camera and makes free rotation feel broken even though the
+        camera angle itself (uirevision) is preserved."""
+        if self._surface is None:
+            return None
+        return tuple((min(vals) - margin, max(vals) + margin) for vals in self._surface)
 
     def _start_server(self):
         handler = functools.partial(_QuietHTTPRequestHandler, directory=self.out_dir)
@@ -433,7 +445,7 @@ class LiveHtmlPlot:
         if self._surface is not None:
             traces.append(go.Scatter3d(
                 x=self._surface[0], y=self._surface[1], z=self._surface[2],
-                mode="markers", marker=dict(size=2, color="lightgray", opacity=0.4),
+                mode="markers", marker=dict(size=3, color="dimgray", opacity=0.85),
                 name="Cone surface", hoverinfo="skip",
             ))
         if traj:
@@ -453,13 +465,24 @@ class LiveHtmlPlot:
                 textposition="top center", textfont=dict(size=9, color="red"),
                 name="Press peak",
             ))
+        if self._axis_range is not None:
+            xr, yr, zr = self._axis_range
+            scene = dict(
+                xaxis=dict(title="X (m)", range=list(xr)),
+                yaxis=dict(title="Y (m)", range=list(yr)),
+                zaxis=dict(title="Z (m)", range=list(zr)),
+                aspectmode="data", dragmode="orbit",
+            )
+        else:
+            scene = dict(xaxis_title="X (m)", yaxis_title="Y (m)", zaxis_title="Z (m)",
+                         aspectmode="data", dragmode="orbit")
+
         fig = go.Figure(traces)
         fig.update_layout(
             title=f"Live TCP trajectory + presses ({len(presses)} press(es))",
             margin=dict(t=60),
             uirevision="constant",   # keeps Plotly.react() from resetting the camera
-            scene=dict(xaxis_title="X (m)", yaxis_title="Y (m)", zaxis_title="Z (m)",
-                       aspectmode="data"),
+            scene=scene,
         )
         tmp_path = self.data_path + ".tmp"
         with open(tmp_path, "w") as f:
