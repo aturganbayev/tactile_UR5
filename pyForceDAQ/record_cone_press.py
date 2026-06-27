@@ -101,8 +101,15 @@ LOOP_HZ = 125
 LIVE_PLOT = True
 LIVE_PLOT_PORT = 8765              # local HTTP server port (first free at/after this)
 LIVE_PLOT_REFRESH_S = 1.0          # render + browser poll interval
-LIVE_PLOT_DECIMATE = 4             # keep 1 of every N trajectory samples in the view
-LIVE_PLOT_MAX_POINTS = 6000        # rolling window of recent trajectory points shown
+LIVE_PLOT_DECIMATE = 15            # keep 1 of every N trajectory samples in the view
+LIVE_PLOT_MAX_POINTS = 1500        # rolling window of recent trajectory points shown
+LIVE_PLOT_SURFACE_MAX_POINTS = 800  # cone surface points shown (it's WebGL - more = slower GPU)
+# Auto-open a browser tab on THIS machine when recording starts. Turn this off
+# if you're recording on a weak/headless DAQ PC and only ever viewing the
+# live plot remotely (see the printed LAN URL) - there's no point rendering
+# WebGL locally on a machine nobody is looking at, and on weak/virtual GPUs
+# that local browser can itself be the thing lagging, not the plot/network.
+LIVE_PLOT_AUTO_OPEN = True
 
 # UR real-time packet layout (port 30003, big-endian).
 #
@@ -250,6 +257,9 @@ def _load_surface_points():
         return None
     with open(path, newline="") as f:
         rows = list(csv.DictReader(f))
+    if len(rows) > LIVE_PLOT_SURFACE_MAX_POINTS:
+        step = max(1, len(rows) // LIVE_PLOT_SURFACE_MAX_POINTS)
+        rows = rows[::step]
     return ([float(r["x"]) for r in rows],
             [float(r["y"]) for r in rows],
             [float(r["z"]) for r in rows])
@@ -377,7 +387,7 @@ class LiveHtmlPlot:
     def _announce(self):
         local_url = f"http://localhost:{self.port}/{os.path.basename(self.html_path)}"
         have_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
-        if have_display:
+        if have_display and LIVE_PLOT_AUTO_OPEN:
             import webbrowser
             try:
                 webbrowser.open(local_url)
@@ -385,7 +395,8 @@ class LiveHtmlPlot:
                 print(f"  [warn] could not auto-open live plot ({e}); open it manually:")
                 print(f"    {local_url}")
         else:
-            print("  No local display detected - not auto-opening a browser.")
+            if not have_display:
+                print("  No local display detected - not auto-opening a browser.")
             print(f"  Live plot (on this machine): {local_url}")
 
         lan_ip = _guess_lan_ip()
