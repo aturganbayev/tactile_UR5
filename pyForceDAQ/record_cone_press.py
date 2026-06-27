@@ -29,13 +29,15 @@ import struct
 import sys
 import threading
 import time
+from collections import deque
 from time import strftime, localtime
 
 from forceDAQ.force.data_recorder import DataRecorder
 from forceDAQ.force.sensor import SensorSettings
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pose_utils import SIM_HOST, REAL_HOST
+import paths
+from pose_utils import SIM_HOST, REAL_HOST, tcp_pose_to_contact
 
 # --------------------------------------------------------------------------- #
 #                                  SETTINGS                                    #
@@ -82,6 +84,17 @@ PRESS_REFRACTORY_S = 4.0
 
 # Logging loop rate (the UR stream is ~125 Hz)
 LOOP_HZ = 125
+
+# Live 3D plot of the TCP path + detected presses, shown while recording.
+# Runs in the main thread alongside the DAQ loop, so redraws are throttled
+# (LIVE_PLOT_REFRESH_S) and the trajectory fed into it is decimated
+# (LIVE_PLOT_DECIMATE) to keep the 125 Hz loop from falling behind. If
+# matplotlib/a display isn't available (e.g. a headless DAQ PC) this is
+# disabled automatically - the CSV recording itself is unaffected either way.
+LIVE_PLOT = True
+LIVE_PLOT_REFRESH_S = 0.2          # redraw at most 5x/sec
+LIVE_PLOT_DECIMATE = 4             # keep 1 of every N trajectory samples on screen
+LIVE_PLOT_MAX_POINTS = 4000        # rolling window of recent trajectory points shown
 
 # UR real-time packet layout (port 30003, big-endian).
 #
@@ -219,6 +232,82 @@ class RobotPoseReader(threading.Thread):
 
 
 # --------------------------------------------------------------------------- #
+#                                LIVE PLOT                                     #
+# --------------------------------------------------------------------------- #
+
+
+def _load_surface_points():
+    path = paths.SURFACE_POINTS_BASE
+    if not os.path.exists(path):
+        return None
+    with open(path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    return ([float(r["x"]) for r in rows],
+            [float(r["y"]) for r in rows],
+            [float(r["z"]) for r in rows])
+
+
+class LiveTrajectoryPlot:
+    """Live 3D view of the TCP path over the cone surface, with a marker at
+    each detected press. Must be driven from the main thread (matplotlib
+    isn't thread-safe); add_sample()/add_press() are cheap and refresh()
+    self-throttles to LIVE_PLOT_REFRESH_S so it's safe to call every loop
+    iteration without slowing down the DAQ loop."""
+
+    def __init__(self):
+        import matplotlib.pyplot as plt
+        self._plt = plt
+        plt.ion()
+        self.fig = plt.figure(figsize=(8, 8))
+        self.ax = self.fig.add_subplot(111, projection="3d")
+
+        surface = _load_surface_points()
+        if surface is not None:
+            self.ax.scatter(*surface, c="lightgray", s=2, alpha=0.3, label="Cone surface")
+
+        self._traj_pts = deque(maxlen=LIVE_PLOT_MAX_POINTS)
+        self._traj_sc = self.ax.scatter([], [], [], c="black", s=4, alpha=0.5, label="TCP path")
+        self._press_pts = []
+        self._press_sc = self.ax.scatter([], [], [], c="red", s=140, marker="*",
+                                         edgecolors="black", linewidths=0.8, label="Press peak")
+
+        self.ax.set_xlabel("X (m)")
+        self.ax.set_ylabel("Y (m)")
+        self.ax.set_zlabel("Z (m)")
+        self.ax.set_title("Live TCP trajectory + presses")
+        self.ax.legend(loc="upper left", fontsize=8)
+
+        self._sample_count = 0
+        self._last_draw = 0.0
+        self.fig.canvas.draw()
+        plt.pause(0.001)
+
+    def add_sample(self, tip_xyz):
+        self._sample_count += 1
+        if self._sample_count % LIVE_PLOT_DECIMATE == 0:
+            self._traj_pts.append(tip_xyz)
+
+    def add_press(self, tip_xyz, press_num, peak_fz):
+        self._press_pts.append(tip_xyz)
+        self.ax.text(*tip_xyz, f"#{press_num} {peak_fz:.1f}N", fontsize=7, color="red")
+
+    def refresh(self, force=False):
+        now = time.perf_counter()
+        if not force and (now - self._last_draw) < LIVE_PLOT_REFRESH_S:
+            return
+        self._last_draw = now
+        if self._traj_pts:
+            self._traj_sc._offsets3d = tuple(zip(*self._traj_pts))
+        if self._press_pts:
+            self._press_sc._offsets3d = tuple(zip(*self._press_pts))
+        self.fig.canvas.draw_idle()
+        self.fig.canvas.flush_events()
+
+    def close(self):
+        self._plt.close(self.fig)
+
+
+# --------------------------------------------------------------------------- #
 #                                    MAIN                                      #
 # --------------------------------------------------------------------------- #
 
@@ -289,6 +378,13 @@ def main():
     press_w.writerow(["press", "t_peak", "peak_Fz", "peak_Fmag",
                       "Fx", "Fy", "Fz", "x", "y", "z", "rx", "ry", "rz"])
 
+    live_plot = None
+    if LIVE_PLOT:
+        try:
+            live_plot = LiveTrajectoryPlot()
+        except Exception as e:
+            print(f"  [warn] live plot disabled ({e})")
+
     print("\nRecording. Start your motion script now.")
     print(f"  trajectory -> {traj_path}")
     print(f"  presses    -> {press_path}")
@@ -317,6 +413,8 @@ def main():
                                  f"{speed:.6f}",
                                  f"{fx:.4f}", f"{fy:.4f}", f"{fz:.4f}",
                                  f"{fmag:.4f}"])
+                if live_plot is not None:
+                    live_plot.add_sample(tcp_pose_to_contact(pose[:3], pose[3:]))
 
             # --- press state machine (on Fmag) ------------------------------ #
             # Thresholding on signed Fz alone misses real contact in regions
@@ -351,12 +449,18 @@ def main():
                             print(f"Press {press_count:>3}: peak Fz = {peak['fz']:.2f} N "
                                   f"(|F| = {peak['fmag']:.2f} N) at "
                                   f"TCP=[{p[0]:.4f}, {p[1]:.4f}, {p[2]:.4f}]")
+                            if live_plot is not None:
+                                live_plot.add_press(tcp_pose_to_contact(p[:3], p[3:]),
+                                                     press_count, peak["fz"])
                         in_press = False
                         last_press_end_t = now
                         peak = None
                         off_since = None
                 else:
                     off_since = None  # Fmag back above PRESS_OFF_N - reset the debounce
+
+            if live_plot is not None:
+                live_plot.refresh()
 
             # pace the loop
             next_t += period
@@ -375,6 +479,10 @@ def main():
         print(f"\nDone. {press_count} press(es) recorded.")
         print(f"  {traj_path}")
         print(f"  {press_path}")
+        if live_plot is not None:
+            live_plot.refresh(force=True)
+            print("Close the plot window to exit.")
+            live_plot._plt.show(block=True)
 
 
 if __name__ == "__main__":

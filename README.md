@@ -176,7 +176,7 @@ Generates `NUM_STRIPS` vertical strips evenly distributed around the cone, each 
 Each contact point is **synthesized directly on the strip's meridian** rather than picking the nearest measured point. Because the cone is a surface of revolution, this gives:
 
 - **Straight strips** — every point of a strip sits at exactly the strip's azimuth, so the strip traces a clean line down the cone (no zig-zag from discrete sampling).
-- **Even spacing** — points are placed at evenly-spaced heights (band centres), with the local cone radius from a linear fit of the band's measured points.
+- **Even spacing, apex included** — target heights are evenly spaced including both endpoints, so the first point of every strip lands exactly on the true apex (instead of being offset by half a band width); the local cone radius still comes from a linear fit of the points within each height band.
 - **Clean normals** — the surface normal is taken from the nearest measured point, projected into the meridian plane and forced outward (handles the apex too).
 
 To keep the printed sensor holder clear of the cone and the wrist clear of the lower arm, the tool orientation is tilted toward vertical with a height-scaled magnitude: `MIN_ORIENTATION_TILT_DEG` (7°) at the apex band up to `MAX_ORIENTATION_TILT_DEG` (14°) at the lowest band. **Only the orientation tilts** — the contact point and press direction stay on the true surface normal — so the press stays near-perpendicular (≈5–15° off-normal). The applied tilt is recorded per pose in the `tilt_deg` CSV column.
@@ -191,21 +191,21 @@ The plot has two panels: a **3D view** (robot base frame) and a **top-down view*
 
 ![Cone touch poses](figures/example_cone_touch_poses.png)
 
-Key parameters at the top of the script:
+Key parameters, defined as tunable constants at the top of the script (see the comments there for current defaults):
 
-| Parameter | Default | Description |
-|---|---|---|
-| `NUM_STRIPS` | `20` | Strips evenly distributed around the cone |
-| `NUM_POINTS` | `10` | Touch points per strip (top → bottom) |
-| `MIN_HEIGHT_FRACTION` | `0.35` | Lower bound of the strips (fraction of cone height). Lower it for more lower-cone coverage, at the cost of clearance (arm config keeps the wrist joints off the table, esp. on the near side toward the robot base). |
+| Parameter | Description |
+|---|---|
+| `NUM_STRIPS` | Strips evenly distributed around the cone |
+| `NUM_POINTS` | Touch points per strip (top → bottom) |
+| `MIN_HEIGHT_FRACTION` | Lower bound of the strips (fraction of cone height). Lower it for more lower-cone coverage, at the cost of clearance (arm config keeps the wrist joints off the table, esp. on the near side toward the robot base). |
 
-Both `NUM_STRIPS` and `NUM_POINTS` are free to change; the generator and executor adapt automatically. Each row in all pose CSVs contains a paired approach pose (`approach_distance` = 15 mm stand-off along the surface normal) and a press pose (`press_distance` = 20 mm into the surface).
+Both `NUM_STRIPS` and `NUM_POINTS` are free to change; the generator and executor adapt automatically. Each row in all pose CSVs contains a paired approach pose (`approach_distance` = 15 mm stand-off along the surface normal) and a press pose (`press_distance` = 15 mm into the surface).
 
 ---
 
 ### Step 7 — Move robot to start pose
 
-Moves the robot from the home configuration through a safe pre-pose to the hover position directly above the cone apex (10 mm clearance).
+Moves the robot from the home configuration through a safe pre-pose to the hover position directly above the cone apex (30 mm clearance).
 
 ```bash
 python execution/home_start.py
@@ -216,7 +216,7 @@ Prompts for `sim` or `real` mode. Motion sequence:
 ```
 Home joints [0, -π/2, 0, -π/2, 0, 0]
   └─ movej → Pre-pose [-π/2, -π/2, -π/2, -π/2, π/2, -π/2]
-       └─ movel → Start pose (apex TCP + 10 mm Z)
+       └─ movel → Start pose (apex TCP + 30 mm Z)
 ```
 
 To move directly to the start pose only (skipping the pre-pose joint move):
@@ -291,16 +291,34 @@ python3 record_cone_press.py
 python3 execution/run_side_strip_poses.py
 ```
 
-Each detected press prints live (`Press N: peak Fz = … at TCP=[…]`). Press `Ctrl-C` to stop the recorder once the motion finishes. Outputs are written to `pyForceDAQ/cone_data/`, timestamped per session:
+Each detected press prints live (`Press N: peak Fz = … at TCP=[…]`) and, if a display is available, also appears on a **live 3D plot** of the TCP path over the cone surface — the path updates continuously while the robot moves, and each detected press is marked with a red star and labeled `#N <peak Fz>N`. This is on by default (`LIVE_PLOT = True` at the top of `record_cone_press.py`); it runs in the main thread alongside the DAQ loop, so redraws are throttled to 5 Hz and the trajectory fed into it is decimated (`LIVE_PLOT_DECIMATE`, `LIVE_PLOT_REFRESH_S`) to avoid slowing down the 125 Hz logging loop. On a headless DAQ PC (no display/matplotlib) it disables itself automatically with a warning — CSV recording is unaffected either way. After `Ctrl-C`, the final plot stays open until you close the window. Press `Ctrl-C` to stop the recorder once the motion finishes. Outputs are written to `pyForceDAQ/cone_data/`, timestamped per session:
 
 | File | Contents |
 |---|---|
 | `<ts>_trajectory.csv` | Continuous `t, x,y,z,rx,ry,rz, speed, Fx,Fy,Fz, Fmag` (~125 Hz) |
 | `<ts>_presses.csv` | One row per detected press: peak `Fz` / `\|F\|` and the TCP pose at the peak |
 
-Detection thresholds and loop rate are constants at the top of `record_cone_press.py` (defaults: press starts at `0.5 N`, ends at `0.3 N`; logged at `LOOP_HZ` = 125 Hz). If `Fz` reads negative during contact, flip the threshold signs (the `reverse_parameter_names="Fz"` setting normally makes a press positive).
+Press detection thresholds on **`Fmag` = |F|** (not signed `Fz`) — a touch near the cone's embedded bulge can load mostly `Fx`/`Fy` with `Fz` negative, missing a `Fz`-only threshold even though `|F|` is well above it. A press starts once `Fmag` rises above `PRESS_ON_N` (`0.5 N`) and is only considered over once `Fmag` has stayed below `PRESS_OFF_N` (`0.3 N`) for `PRESS_OFF_DEBOUNCE_S` (`0.5 s`) — long enough to ride out the momentary dip some cones show between the soft outer shell and an embedded hard "tumor" ball, which would otherwise look like two separate presses. After a press ends, new presses are ignored for `PRESS_REFRACTORY_S` (`4.0 s`) to filter out the rebound as the tool retracts. Logged at `LOOP_HZ` = 125 Hz.
 
 **DAQ sample rate:** the Nano17 runs in HW-timed single-point mode, so the host must service the device every sample; too high a rate overruns the DAQ buffer (NI error `-200714`). `SENSOR_RATE` (default `500` Hz) keeps comfortable headroom over the 125 Hz logging loop. Lower it (e.g. `250`) if the overrun recurs on a loaded machine.
+
+### Visualize a recording
+
+```bash
+python pyForceDAQ/plot_cone_data.py [stamp]
+```
+
+`stamp` is the timestamp prefix of a recording (matches `<stamp>_trajectory.csv` / `<stamp>_presses.csv` in `pyForceDAQ/cone_data/`); if omitted, the most recently modified recording is used. Saves five PNGs to `figures/` (and shows them):
+
+| File | Contents |
+|---|---|
+| `<stamp>_force_vs_time.png` | `Fz`/`\|F\|` over time, with detected press peaks marked |
+| `<stamp>_speed_vs_time.png` | TCP speed over time |
+| `<stamp>_trajectory_3d.png` | 3D approach paths into each press, the top 24 by peak force highlighted in gold and the next 24 in cyan (free-space transit between strips is filtered out) |
+| `<stamp>_peak_force_per_press.png` | Peak `Fz`/`\|F\|` bar chart, one bar per press |
+| `<stamp>_press_force_on_cone.png` | Peak force at each press mapped onto the calibrated cone surface, top/next-24 marked with star/triangle markers |
+
+The same module also exposes `save_trajectory_3d_html` / `save_press_force_on_cone_html`, which render the equivalent interactive WebGL plots (Plotly) to standalone `.html` files — useful for rotating/zooming a session in a browser without rerunning Python. They aren't wired into `main()`; call them from a script or REPL when needed.
 
 ### Sync recordings to the workstation
 
@@ -386,6 +404,7 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `execution/shutdown_robot.py` | Return home, then power down the controller (`real` requires confirmation) |
 | `execution/watch_robot_messages.py` | Live-decode the Robot Message stream (port 30001) — mirrors the pendant's Log tab in real time |
 | `pyForceDAQ/record_cone_press.py` | Record Nano17 force + UR5 TCP pose; auto-detect each press and log its peak force with the pose at that instant |
+| `pyForceDAQ/plot_cone_data.py` | Plot a recorded session: force/speed over time, 3D approach paths and peak-force-on-cone-surface (top presses by force highlighted); also exposes interactive Plotly HTML variants |
 | `pyForceDAQ/sync_cone_data.sh` | Copy recordings from the remote DAQ PC (sshfs mount) into the local repo |
 | `pyForceDAQ/calibration/` | ATI sensor calibration files (`FT12876` = Nano17, `FT12877`) |
 | `data/surface_points.csv` | Raw STL surface points (mm, STL frame) |
@@ -407,22 +426,26 @@ Defined in `pose_utils.py` and the generator scripts:
 | Parameter | Value | Location |
 |---|---|---|
 | Tool tip offset | `[0, 0, 0.086]` m | `pose_utils.py` |
-| Start clearance | `0.01` m (10 mm above apex) | `pose_utils.py` |
+| Start clearance | `0.03` m (30 mm above apex) | `pose_utils.py` |
 | Default start orientation | `[-2.2, 2.2, 0.0]` rad | `pose_utils.py` |
-| Approach stand-off | `0.02` m | `pose_utils.py` |
-| Press depth | `0.02` m | `pose_utils.py` |
-| Orientation tilt (off-normal) | `5°` apex band → `15°` lowest band (`MIN/MAX_ORIENTATION_TILT_DEG`) | `pose_utils.py` |
+| Approach stand-off | `0.015` m | `pose_utils.py` |
+| Press depth | `0.015` m | `pose_utils.py` |
+| Orientation tilt (off-normal) | `7°` apex band → `14°` lowest band (`MIN/MAX_ORIENTATION_TILT_DEG`) | `pose_utils.py` |
 | Sim transit speed / accel (joint) | `V_sim = 3` rad/s, `A_sim = 8` rad/s² | `pose_utils.py` |
-| Real transit speed / accel (joint) | `V_real = 0.4` rad/s, `A_real = 0.2` rad/s² | `pose_utils.py` |
+| Real transit speed / accel (joint) | `V_real = 0.7` rad/s, `A_real = 0.35` rad/s² | `pose_utils.py` |
 | Sim approach (contact) speed / accel | `V_approach_sim = 1` m/s, `A_approach_sim = 2.5` m/s² | `pose_utils.py` |
-| Real approach (contact) speed / accel | `V_approach_real = 0.02` m/s, `A_approach_real = 0.01` m/s² | `pose_utils.py` |
+| Real approach (contact) speed / accel | `V_approach_real = 0.04` m/s, `A_approach_real = 0.02` m/s² | `pose_utils.py` |
 | Lift before return to start | `SAFE_LIFT_M = 0.06` m (base +Z) | `execution/run_side_strip_poses.py` |
 | Settle pause (sim / real) | `0.1` s / `0.5` s | `execution/run_side_strip_poses.py` |
-| Number of strips | `15` (evenly around the cone) | `pose_generation/generate_side_strip_poses.py` |
-| Points per strip | `10` (apex → lower bound) | `pose_generation/generate_side_strip_poses.py` |
-| Side strip lower bound | `0.72` (72 % from base) | `pose_generation/generate_side_strip_poses.py` |
-| Press detect threshold | `0.5` N on / `0.3` N off | `pyForceDAQ/record_cone_press.py` |
+| Number of strips | `NUM_STRIPS` — tunable, evenly around the cone | `pose_generation/generate_side_strip_poses.py` |
+| Points per strip | `NUM_POINTS` — tunable, apex → lower bound | `pose_generation/generate_side_strip_poses.py` |
+| Side strip lower bound | `MIN_HEIGHT_FRACTION` — tunable, fraction from base | `pose_generation/generate_side_strip_poses.py` |
+| Press detect threshold | `0.5` N on / `0.3` N off, on `Fmag` | `pyForceDAQ/record_cone_press.py` |
+| Press-off debounce | `PRESS_OFF_DEBOUNCE_S = 0.5` s | `pyForceDAQ/record_cone_press.py` |
+| Press refractory window | `PRESS_REFRACTORY_S = 4.0` s | `pyForceDAQ/record_cone_press.py` |
 | DAQ sample rate | `SENSOR_RATE = 500` Hz | `pyForceDAQ/record_cone_press.py` |
 | Force log rate | `125` Hz (`LOOP_HZ`) | `pyForceDAQ/record_cone_press.py` |
 | Force sensor | `FT12876` (Nano17) | `pyForceDAQ/record_cone_press.py` |
+| Live plot on/off | `LIVE_PLOT = True` | `pyForceDAQ/record_cone_press.py` |
+| Live plot redraw rate / decimation | `LIVE_PLOT_REFRESH_S = 0.2` s, `LIVE_PLOT_DECIMATE = 4` | `pyForceDAQ/record_cone_press.py` |
 

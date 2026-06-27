@@ -6,6 +6,7 @@ numpy==1.24.4
 scipy==1.15.3
 pandas==2.3.3
 matplotlib==3.10.9
+plotly==6.8.0
 
 # DAQ PC only (force + pose recording in pyForceDAQ/). Also needs the NI-DAQmx
 # system driver installed separately, and atidaq.so built from pyForceDAQ/atidaq_cdll/.
