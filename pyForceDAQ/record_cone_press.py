@@ -85,16 +85,18 @@ PRESS_REFRACTORY_S = 4.0
 # Logging loop rate (the UR stream is ~125 Hz)
 LOOP_HZ = 125
 
-# Live 3D plot of the TCP path + detected presses, shown while recording.
-# Runs in the main thread alongside the DAQ loop, so redraws are throttled
-# (LIVE_PLOT_REFRESH_S) and the trajectory fed into it is decimated
-# (LIVE_PLOT_DECIMATE) to keep the 125 Hz loop from falling behind. If
-# matplotlib/a display isn't available (e.g. a headless DAQ PC) this is
-# disabled automatically - the CSV recording itself is unaffected either way.
+# Live view of the TCP path + detected presses over the cone surface, shown
+# while recording. Rendered as a self-refreshing Plotly HTML file (open it in
+# any browser) rather than a live matplotlib window: mplot3d redraws are slow
+# enough to stall the 125 Hz DAQ loop they share a thread with (and a
+# headless/no-display DAQ PC can't show a window at all). The HTML is built
+# in a background thread that only ever takes a quick snapshot of the
+# buffers, so a slow render just makes the file update less often instead of
+# adding lag to the recording loop.
 LIVE_PLOT = True
-LIVE_PLOT_REFRESH_S = 0.2          # redraw at most 5x/sec
-LIVE_PLOT_DECIMATE = 4             # keep 1 of every N trajectory samples on screen
-LIVE_PLOT_MAX_POINTS = 4000        # rolling window of recent trajectory points shown
+LIVE_PLOT_REFRESH_S = 1.0          # re-render (and browser auto-refresh) interval
+LIVE_PLOT_DECIMATE = 4             # keep 1 of every N trajectory samples in the view
+LIVE_PLOT_MAX_POINTS = 6000        # rolling window of recent trajectory points shown
 
 # UR real-time packet layout (port 30003, big-endian).
 #
@@ -247,64 +249,106 @@ def _load_surface_points():
             [float(r["z"]) for r in rows])
 
 
-class LiveTrajectoryPlot:
-    """Live 3D view of the TCP path over the cone surface, with a marker at
-    each detected press. Must be driven from the main thread (matplotlib
-    isn't thread-safe); add_sample()/add_press() are cheap and refresh()
-    self-throttles to LIVE_PLOT_REFRESH_S so it's safe to call every loop
-    iteration without slowing down the DAQ loop."""
+class LiveHtmlPlot:
+    """Live view of the TCP path + presses over the cone surface, rendered as
+    a self-refreshing Plotly HTML file by a background thread.
 
-    def __init__(self):
-        import matplotlib.pyplot as plt
-        self._plt = plt
-        plt.ion()
-        self.fig = plt.figure(figsize=(8, 8))
-        self.ax = self.fig.add_subplot(111, projection="3d")
+    add_sample()/add_press() just append to lock-protected buffers from the
+    DAQ loop - cheap, no rendering happens there. A background thread wakes
+    up every LIVE_PLOT_REFRESH_S, takes a quick snapshot, and writes the HTML
+    (to a temp file, then atomically renamed into place so a browser never
+    reads a half-written file). Worst case a slow render just falls behind;
+    it can never block or slow down the recording loop."""
 
-        surface = _load_surface_points()
-        if surface is not None:
-            self.ax.scatter(*surface, c="lightgray", s=2, alpha=0.3, label="Cone surface")
-
+    def __init__(self, out_path):
+        import plotly.graph_objects as go
+        self._go = go
+        self.out_path = out_path
+        self._lock = threading.Lock()
         self._traj_pts = deque(maxlen=LIVE_PLOT_MAX_POINTS)
-        self._traj_sc = self.ax.scatter([], [], [], c="black", s=4, alpha=0.5, label="TCP path")
-        self._press_pts = []
-        self._press_sc = self.ax.scatter([], [], [], c="red", s=140, marker="*",
-                                         edgecolors="black", linewidths=0.8, label="Press peak")
-
-        self.ax.set_xlabel("X (m)")
-        self.ax.set_ylabel("Y (m)")
-        self.ax.set_zlabel("Z (m)")
-        self.ax.set_title("Live TCP trajectory + presses")
-        self.ax.legend(loc="upper left", fontsize=8)
-
+        self._press_pts = []   # (x, y, z, press_num, peak_fz)
         self._sample_count = 0
-        self._last_draw = 0.0
-        self.fig.canvas.draw()
-        plt.pause(0.001)
+        self._surface = _load_surface_points()
+        self._stop_event = threading.Event()
+        self._render()   # fail fast here (e.g. bad out_path) before starting the thread
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
 
     def add_sample(self, tip_xyz):
         self._sample_count += 1
         if self._sample_count % LIVE_PLOT_DECIMATE == 0:
-            self._traj_pts.append(tip_xyz)
+            with self._lock:
+                self._traj_pts.append(tip_xyz)
 
     def add_press(self, tip_xyz, press_num, peak_fz):
-        self._press_pts.append(tip_xyz)
-        self.ax.text(*tip_xyz, f"#{press_num} {peak_fz:.1f}N", fontsize=7, color="red")
+        with self._lock:
+            self._press_pts.append((*tip_xyz, press_num, peak_fz))
 
-    def refresh(self, force=False):
-        now = time.perf_counter()
-        if not force and (now - self._last_draw) < LIVE_PLOT_REFRESH_S:
-            return
-        self._last_draw = now
-        if self._traj_pts:
-            self._traj_sc._offsets3d = tuple(zip(*self._traj_pts))
-        if self._press_pts:
-            self._press_sc._offsets3d = tuple(zip(*self._press_pts))
-        self.fig.canvas.draw_idle()
-        self.fig.canvas.flush_events()
+    def _snapshot(self):
+        with self._lock:
+            return list(self._traj_pts), list(self._press_pts)
+
+    def _render(self):
+        go = self._go
+        traj, presses = self._snapshot()
+        traces = []
+        if self._surface is not None:
+            traces.append(go.Scatter3d(
+                x=self._surface[0], y=self._surface[1], z=self._surface[2],
+                mode="markers", marker=dict(size=2, color="lightgray", opacity=0.4),
+                name="Cone surface", hoverinfo="skip",
+            ))
+        if traj:
+            xs, ys, zs = zip(*traj)
+            traces.append(go.Scatter3d(
+                x=xs, y=ys, z=zs, mode="markers",
+                marker=dict(size=2, color="black", opacity=0.6),
+                name="TCP path",
+            ))
+        if presses:
+            px, py, pz, pn, pf = zip(*presses)
+            traces.append(go.Scatter3d(
+                x=px, y=py, z=pz, mode="markers+text",
+                marker=dict(size=8, color="red", symbol="diamond",
+                            line=dict(color="black", width=1)),
+                text=[f"#{int(n)} {f:.1f}N" for n, f in zip(pn, pf)],
+                textposition="top center", textfont=dict(size=9, color="red"),
+                name="Press peak",
+            ))
+        fig = go.Figure(traces)
+        fig.update_layout(
+            title=f"Live TCP trajectory + presses ({len(presses)} press(es))",
+            margin=dict(t=60),
+            scene=dict(xaxis_title="X (m)", yaxis_title="Y (m)", zaxis_title="Z (m)",
+                       aspectmode="data"),
+        )
+        tmp_path = self.out_path + ".tmp"
+        fig.write_html(tmp_path, include_plotlyjs="cdn")
+        with open(tmp_path) as f:
+            html = f.read()
+        # Auto-refresh the browser tab so you don't have to reload by hand.
+        # Trade-off: this resets pan/zoom/rotation on every refresh.
+        refresh_tag = f'<meta http-equiv="refresh" content="{LIVE_PLOT_REFRESH_S}">'
+        html = html.replace("<head>", f"<head>{refresh_tag}", 1)
+        with open(tmp_path, "w") as f:
+            f.write(html)
+        os.replace(tmp_path, self.out_path)
+
+    def _run(self):
+        while not self._stop_event.is_set():
+            self._stop_event.wait(LIVE_PLOT_REFRESH_S)
+            try:
+                self._render()
+            except Exception as e:
+                print(f"  [warn] live plot render failed ({e})")
 
     def close(self):
-        self._plt.close(self.fig)
+        self._stop_event.set()
+        self._thread.join(timeout=2.0)
+        try:
+            self._render()   # final snapshot with the last presses included
+        except Exception:
+            pass
 
 
 # --------------------------------------------------------------------------- #
@@ -380,8 +424,11 @@ def main():
 
     live_plot = None
     if LIVE_PLOT:
+        live_html_path = os.path.join(out_dir, "live_view.html")
         try:
-            live_plot = LiveTrajectoryPlot()
+            live_plot = LiveHtmlPlot(live_html_path)
+            print(f"Live plot -> {live_html_path}  (open in a browser; "
+                  f"auto-refreshes every {LIVE_PLOT_REFRESH_S:.0f}s)")
         except Exception as e:
             print(f"  [warn] live plot disabled ({e})")
 
@@ -459,9 +506,6 @@ def main():
                 else:
                     off_since = None  # Fmag back above PRESS_OFF_N - reset the debounce
 
-            if live_plot is not None:
-                live_plot.refresh()
-
             # pace the loop
             next_t += period
             sleep = next_t - time.perf_counter()
@@ -480,9 +524,8 @@ def main():
         print(f"  {traj_path}")
         print(f"  {press_path}")
         if live_plot is not None:
-            live_plot.refresh(force=True)
-            print("Close the plot window to exit.")
-            live_plot._plt.show(block=True)
+            live_plot.close()
+            print(f"  {live_plot.out_path} (final state)")
 
 
 if __name__ == "__main__":
