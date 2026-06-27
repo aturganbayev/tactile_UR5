@@ -22,6 +22,8 @@ See COPYING file distributed along with the pyForceDAQ copyright and license ter
 """
 
 import csv
+import functools
+import http.server
 import math
 import os
 import socket
@@ -86,15 +88,16 @@ PRESS_REFRACTORY_S = 4.0
 LOOP_HZ = 125
 
 # Live view of the TCP path + detected presses over the cone surface, shown
-# while recording. Rendered as a self-refreshing Plotly HTML file (open it in
-# any browser) rather than a live matplotlib window: mplot3d redraws are slow
-# enough to stall the 125 Hz DAQ loop they share a thread with (and a
-# headless/no-display DAQ PC can't show a window at all). The HTML is built
-# in a background thread that only ever takes a quick snapshot of the
-# buffers, so a slow render just makes the file update less often instead of
-# adding lag to the recording loop.
+# while recording. A background thread renders a Plotly figure to a small
+# JSON file; a static page (served over a tiny local HTTP server, also
+# started in the background) polls that JSON and updates the plot in place
+# with Plotly.react() - no rendering ever happens on the DAQ loop's thread,
+# and unlike a <meta refresh> page reload, Plotly.react() does NOT reset your
+# pan/zoom/rotation each poll. HTTP (not a raw file:// open) is required so
+# the page's fetch() of the JSON isn't blocked by browser same-origin rules.
 LIVE_PLOT = True
-LIVE_PLOT_REFRESH_S = 1.0          # re-render (and browser auto-refresh) interval
+LIVE_PLOT_PORT = 8765              # local HTTP server port (first free at/after this)
+LIVE_PLOT_REFRESH_S = 1.0          # render + browser poll interval
 LIVE_PLOT_DECIMATE = 4             # keep 1 of every N trajectory samples in the view
 LIVE_PLOT_MAX_POINTS = 6000        # rolling window of recent trajectory points shown
 
@@ -249,63 +252,116 @@ def _load_surface_points():
             [float(r["z"]) for r in rows])
 
 
+def _guess_lan_ip():
+    """Best-effort outbound-facing IP, for printing a LAN URL to the live
+    plot. The UDP "connect" here sends no packets - it just asks the OS
+    which local interface would be used to reach that address."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        s.close()
+
+
+class _QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass   # don't spam the recording terminal with HTTP access logs
+
+
+_LIVE_PLOT_HTML = """<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Live TCP trajectory + presses</title></head>
+<body style="margin:0">
+<div id="plot" style="width:100vw;height:100vh;"></div>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script>
+function refresh() {
+  fetch("live_view_data.json?_=" + Date.now())
+    .then(r => r.json())
+    .then(fig => Plotly.react("plot", fig.data, fig.layout))
+    .catch(() => {});
+}
+refresh();
+setInterval(refresh, %(interval_ms)d);
+</script>
+</body></html>
+"""
+
+
 class LiveHtmlPlot:
-    """Live view of the TCP path + presses over the cone surface, rendered as
-    a self-refreshing Plotly HTML file by a background thread.
+    """Live view of the TCP path + presses over the cone surface: a small
+    local HTTP server (background thread) serves a static page that polls a
+    Plotly figure as JSON and updates the plot in place with Plotly.react() -
+    no full-page reload, so pan/zoom/rotation survive each poll (unlike the
+    earlier <meta refresh> version).
 
     add_sample()/add_press() just append to lock-protected buffers from the
-    DAQ loop - cheap, no rendering happens there. A background thread wakes
-    up every LIVE_PLOT_REFRESH_S, takes a quick snapshot, and writes the HTML
-    (to a temp file, then atomically renamed into place so a browser never
-    reads a half-written file). Worst case a slow render just falls behind;
-    it can never block or slow down the recording loop."""
+    DAQ loop - cheap, no rendering happens there. A separate render thread
+    wakes up every LIVE_PLOT_REFRESH_S, takes a quick snapshot, and writes
+    the JSON (to a temp file, then atomically renamed into place). Worst case
+    a slow render just falls behind; it can never block or slow down the
+    recording loop."""
 
-    def __init__(self, out_path):
+    def __init__(self, out_dir, html_name="live_view.html", data_name="live_view_data.json"):
         import plotly.graph_objects as go
+        from plotly.utils import PlotlyJSONEncoder
         self._go = go
-        self.out_path = out_path
+        self._json_encoder = PlotlyJSONEncoder
+        self.out_dir = out_dir
+        self.html_path = os.path.join(out_dir, html_name)
+        self.data_path = os.path.join(out_dir, data_name)
+
         self._lock = threading.Lock()
         self._traj_pts = deque(maxlen=LIVE_PLOT_MAX_POINTS)
         self._press_pts = []   # (x, y, z, press_num, peak_fz)
         self._sample_count = 0
         self._surface = _load_surface_points()
         self._stop_event = threading.Event()
-        self._render()   # fail fast here (e.g. bad out_path) before starting the thread
+
+        with open(self.html_path, "w") as f:
+            f.write(_LIVE_PLOT_HTML % {"interval_ms": int(LIVE_PLOT_REFRESH_S * 1000)})
+        self._render()   # fail fast here (e.g. bad out_dir) before starting threads
+
+        self.port = self._start_server()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
-        self._open_in_browser()
+        self._announce()
 
-    def _open_in_browser(self):
-        # webbrowser.open() launches a browser on whatever machine runs this
-        # script - useless (and on a pure-SSH session, often silently a
-        # no-op) if you're recording on the remote DAQ PC and watching from a
-        # different machine. Only try it when a local display is actually
-        # present; either way, always print the path to open on a *viewing*
-        # machine (computed from this repo's actual layout, not hardcoded)
-        # through that machine's sshfs mount of this PC, so it can just be
-        # copy-pasted into a terminal/file manager there.
-        abs_path = os.path.abspath(self.out_path)
-        try:
-            rel_path = os.path.relpath(abs_path, paths.ROOT)
-        except ValueError:
-            rel_path = None
-        remote_view_path = f"~/remote-server/{rel_path}" if rel_path else None
+    def _start_server(self):
+        handler = functools.partial(_QuietHTTPRequestHandler, directory=self.out_dir)
+        last_err = None
+        for port in range(LIVE_PLOT_PORT, LIVE_PLOT_PORT + 10):
+            try:
+                httpd = http.server.ThreadingHTTPServer(("0.0.0.0", port), handler)
+                break
+            except OSError as e:
+                last_err = e
+        else:
+            raise last_err
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self._httpd = httpd
+        return port
 
+    def _announce(self):
+        local_url = f"http://localhost:{self.port}/{os.path.basename(self.html_path)}"
         have_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
         if have_display:
             import webbrowser
             try:
-                webbrowser.open(f"file://{abs_path}")
+                webbrowser.open(local_url)
             except Exception as e:
                 print(f"  [warn] could not auto-open live plot ({e}); open it manually:")
-                print(f"    {abs_path}")
+                print(f"    {local_url}")
         else:
             print("  No local display detected - not auto-opening a browser.")
-            print(f"  Live plot file: {abs_path}")
+            print(f"  Live plot (on this machine): {local_url}")
 
-        if remote_view_path:
-            print(f"  Viewing from another machine? Open this path there:")
-            print(f"    {remote_view_path}")
+        lan_ip = _guess_lan_ip()
+        if lan_ip:
+            print("  Viewing from another machine on the same network? Open:")
+            print(f"    http://{lan_ip}:{self.port}/{os.path.basename(self.html_path)}")
 
     def add_sample(self, tip_xyz):
         self._sample_count += 1
@@ -352,20 +408,14 @@ class LiveHtmlPlot:
         fig.update_layout(
             title=f"Live TCP trajectory + presses ({len(presses)} press(es))",
             margin=dict(t=60),
+            uirevision="constant",   # keeps Plotly.react() from resetting the camera
             scene=dict(xaxis_title="X (m)", yaxis_title="Y (m)", zaxis_title="Z (m)",
                        aspectmode="data"),
         )
-        tmp_path = self.out_path + ".tmp"
-        fig.write_html(tmp_path, include_plotlyjs="cdn")
-        with open(tmp_path) as f:
-            html = f.read()
-        # Auto-refresh the browser tab so you don't have to reload by hand.
-        # Trade-off: this resets pan/zoom/rotation on every refresh.
-        refresh_tag = f'<meta http-equiv="refresh" content="{LIVE_PLOT_REFRESH_S}">'
-        html = html.replace("<head>", f"<head>{refresh_tag}", 1)
+        tmp_path = self.data_path + ".tmp"
         with open(tmp_path, "w") as f:
-            f.write(html)
-        os.replace(tmp_path, self.out_path)
+            f.write(self._json_encoder().encode(fig.to_plotly_json()))
+        os.replace(tmp_path, self.data_path)
 
     def _run(self):
         while not self._stop_event.is_set():
@@ -380,6 +430,10 @@ class LiveHtmlPlot:
         self._thread.join(timeout=2.0)
         try:
             self._render()   # final snapshot with the last presses included
+        except Exception:
+            pass
+        try:
+            self._httpd.shutdown()
         except Exception:
             pass
 
@@ -457,11 +511,8 @@ def main():
 
     live_plot = None
     if LIVE_PLOT:
-        live_html_path = os.path.join(out_dir, "live_view.html")
         try:
-            live_plot = LiveHtmlPlot(live_html_path)
-            print(f"Live plot -> {live_html_path}  (open in a browser; "
-                  f"auto-refreshes every {LIVE_PLOT_REFRESH_S:.0f}s)")
+            live_plot = LiveHtmlPlot(out_dir)
         except Exception as e:
             print(f"  [warn] live plot disabled ({e})")
 
@@ -558,7 +609,7 @@ def main():
         print(f"  {press_path}")
         if live_plot is not None:
             live_plot.close()
-            print(f"  {live_plot.out_path} (final state)")
+            print(f"  {live_plot.html_path} (final state)")
 
 
 if __name__ == "__main__":
