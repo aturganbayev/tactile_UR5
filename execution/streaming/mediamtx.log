@@ -1,0 +1,764 @@
+2026/06/30 14:07:30 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:07:30 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:07:30 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 14:07:30 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 14:07:30 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 14:07:30 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 14:07:30 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 14:07:30 WAR [MoQ] certificate auto.key not found, generating it from scratch
+2026/06/30 14:07:30 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 14:07:43 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:07:43 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:07:43 ERR listen udp :8000: bind: address already in use
+2026/06/30 14:07:43 INF waiting for running hooks
+2026/06/30 14:07:47 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:07:47 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:07:47 ERR listen udp :8000: bind: address already in use
+2026/06/30 14:07:47 INF waiting for running hooks
+2026/06/30 14:10:02 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:10:02 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:10:02 ERR listen udp :8000: bind: address already in use
+2026/06/30 14:10:02 INF waiting for running hooks
+2026/06/30 14:11:32 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:11:32 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:11:32 ERR listen udp :8000: bind: address already in use
+2026/06/30 14:11:32 INF waiting for running hooks
+2026/06/30 14:11:34 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:11:34 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:11:34 ERR listen udp :8000: bind: address already in use
+2026/06/30 14:11:34 INF waiting for running hooks
+2026/06/30 14:13:31 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:13:31 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:13:31 ERR listen udp :8000: bind: address already in use
+2026/06/30 14:13:31 INF waiting for running hooks
+2026/06/30 14:13:59 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:13:59 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:13:59 ERR listen udp :8000: bind: address already in use
+2026/06/30 14:13:59 INF waiting for running hooks
+2026/06/30 14:15:14 INF shutting down gracefully
+2026/06/30 14:15:14 INF [SRT] closing
+2026/06/30 14:15:14 INF [MoQ] closing
+2026/06/30 14:15:14 INF [WebRTC] closing
+2026/06/30 14:15:14 INF [HLS] closing
+2026/06/30 14:15:14 INF [RTMP] closing
+2026/06/30 14:15:14 INF [RTSP] closing
+2026/06/30 14:15:14 INF waiting for running hooks
+2026/06/30 14:15:29 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:15:29 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:15:29 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 14:15:29 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 14:15:29 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 14:15:29 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 14:15:29 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 14:15:29 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 14:17:07 INF shutting down gracefully
+2026/06/30 14:17:07 INF [SRT] closing
+2026/06/30 14:17:07 INF [MoQ] closing
+2026/06/30 14:17:07 INF [WebRTC] closing
+2026/06/30 14:17:07 INF [HLS] closing
+2026/06/30 14:17:07 INF [RTMP] closing
+2026/06/30 14:17:07 INF [RTSP] closing
+2026/06/30 14:17:07 INF waiting for running hooks
+2026/06/30 14:17:08 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:17:08 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:17:08 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 14:17:08 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 14:17:08 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 14:17:08 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 14:17:08 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 14:17:08 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 14:17:08 INF [RTSP] [conn 100.110.244.54:33950] opened
+2026/06/30 14:17:08 INF [RTSP] [conn 100.110.244.54:33950] closed: EOF
+2026/06/30 14:17:10 INF [RTSP] [conn 100.110.244.54:33962] opened
+2026/06/30 14:17:10 INF [RTSP] [session bafa13eb] created by 100.110.244.54:33962
+2026/06/30 14:17:10 INF [path cam] stream is available and online, 1 track (H264)
+2026/06/30 14:17:10 INF [RTSP] [session bafa13eb] is publishing to path 'cam'
+2026/06/30 14:17:10 INF [path cam] RTP packets are too big (1460 > 1440), remuxing them into smaller ones
+2026/06/30 14:17:11 WAR [RTSP] [session bafa13eb] 39 RTP packets lost
+2026/06/30 14:17:17 INF [HLS] [muxer cam] created (requested by 100.114.5.85:63308)
+2026/06/30 14:17:17 INF [HLS] [muxer cam] is converting into HLS, 1 track (H264)
+2026/06/30 14:17:17 INF [HLS] [session 8160a853] created by 100.114.5.85:63308, reading from muxer 'cam'
+2026/06/30 14:17:35 INF [HLS] [session abf0f1e5] created by 100.114.5.85:63309, reading from muxer 'cam'
+2026/06/30 14:17:42 INF shutting down gracefully
+2026/06/30 14:17:42 INF [SRT] closing
+2026/06/30 14:17:42 INF [MoQ] closing
+2026/06/30 14:17:42 INF [WebRTC] closing
+2026/06/30 14:17:42 INF [HLS] closing
+2026/06/30 14:17:42 INF [HLS] [session 8160a853] closed: muxer destroyed
+2026/06/30 14:17:42 INF [HLS] [session abf0f1e5] closed: muxer destroyed
+2026/06/30 14:17:42 INF [HLS] [muxer cam] destroyed: terminated
+2026/06/30 14:17:42 INF [RTMP] closing
+2026/06/30 14:17:42 INF [RTSP] closing
+2026/06/30 14:17:42 INF [RTSP] [conn 100.110.244.54:33962] closed: terminated
+2026/06/30 14:17:42 INF [RTSP] [session bafa13eb] destroyed: terminated
+2026/06/30 14:17:42 INF waiting for running hooks
+2026/06/30 14:17:48 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:17:48 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:17:48 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 14:17:48 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 14:17:48 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 14:17:48 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 14:17:48 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 14:17:48 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 14:17:49 INF [RTSP] [conn 100.110.244.54:49032] opened
+2026/06/30 14:17:49 INF [RTSP] [conn 100.110.244.54:49032] closed: EOF
+2026/06/30 14:17:50 INF [RTSP] [conn 100.110.244.54:49036] opened
+2026/06/30 14:17:50 INF [RTSP] [session 6ec19c48] created by 100.110.244.54:49036
+2026/06/30 14:17:50 INF [path cam] stream is available and online, 1 track (H264)
+2026/06/30 14:17:50 INF [RTSP] [session 6ec19c48] is publishing to path 'cam'
+2026/06/30 14:17:50 INF [path cam] RTP packets are too big (1460 > 1440), remuxing them into smaller ones
+2026/06/30 14:17:51 WAR [RTSP] [session 6ec19c48] 60 RTP packets lost
+2026/06/30 14:17:54 INF [HLS] [muxer cam] created (requested by 100.114.5.85:63313)
+2026/06/30 14:17:54 INF [HLS] [muxer cam] is converting into HLS, 1 track (H264)
+2026/06/30 14:17:54 INF [HLS] [session 94089c46] created by 100.114.5.85:63313, reading from muxer 'cam'
+2026/06/30 14:18:24 INF [HLS] [session 94089c46] closed: inactive
+2026/06/30 14:18:40 WAR [RTSP] [session 6ec19c48] 22 RTP packets lost
+2026/06/30 14:18:40 WAR [path cam] 5 processing errors, last was: invalid FU-A packet (non-starting)
+2026/06/30 14:18:41 WAR [RTSP] [session 6ec19c48] 1 RTP packet lost
+2026/06/30 14:18:54 INF [HLS] [muxer cam] destroyed: not used anymore
+2026/06/30 14:18:54 INF [HLS] [muxer cam] created (requested by 100.114.5.85:63313)
+2026/06/30 14:18:54 INF [HLS] [muxer cam] is converting into HLS, 1 track (H264)
+2026/06/30 14:18:54 INF [HLS] [session 018f5172] created by 100.114.5.85:63313, reading from muxer 'cam'
+2026/06/30 14:19:03 INF [WebRTC] [session fbc16c5a] created by 100.114.5.85:63315
+2026/06/30 14:19:04 INF [WebRTC] [session fbc16c5a] peer connection established, local candidate: host/udp/100.110.244.54/8189, remote candidate: prflx/udp/100.114.5.85/61118
+2026/06/30 14:19:04 INF [WebRTC] [session fbc16c5a] is reading from path 'cam', 1 track (H264)
+2026/06/30 14:19:24 INF [HLS] [session 018f5172] closed: inactive
+2026/06/30 14:19:54 INF [HLS] [muxer cam] destroyed: not used anymore
+2026/06/30 14:20:00 INF [HLS] [muxer cam] created (requested by 100.114.5.85:63622)
+2026/06/30 14:20:00 INF [HLS] [muxer cam] is converting into HLS, 1 track (H264)
+2026/06/30 14:20:00 INF [HLS] [session f73be5b3] created by 100.114.5.85:63622, reading from muxer 'cam'
+2026/06/30 14:20:00 INF [WebRTC] [session fbc16c5a] closed: peer connection closed
+2026/06/30 14:20:30 INF [HLS] [session f73be5b3] closed: inactive
+2026/06/30 14:21:00 INF [HLS] [muxer cam] destroyed: not used anymore
+2026/06/30 14:21:00 INF [HLS] [muxer cam] created (requested by 100.114.5.85:63622)
+2026/06/30 14:21:00 INF [HLS] [muxer cam] is converting into HLS, 1 track (H264)
+2026/06/30 14:21:00 INF [HLS] [session 60f53eb1] created by 100.114.5.85:63622, reading from muxer 'cam'
+2026/06/30 14:21:12 INF [HLS] [session 61191eb6] created by 100.114.5.85:63624, reading from muxer 'cam'
+2026/06/30 14:21:30 INF [HLS] [session 60f53eb1] closed: inactive
+2026/06/30 14:21:50 INF [HLS] [session 61191eb6] closed: inactive
+2026/06/30 14:22:20 INF [HLS] [muxer cam] destroyed: not used anymore
+2026/06/30 14:22:21 INF [RTSP] [conn 100.114.5.85:49700] opened
+2026/06/30 14:22:21 INF [RTSP] [session f8525bcd] created by 100.114.5.85:49700
+2026/06/30 14:22:21 INF [RTSP] [session f8525bcd] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 14:22:37 INF [RTSP] [conn 100.114.5.85:49701] opened
+2026/06/30 14:22:38 INF [RTSP] [session 6fc3c79c] created by 100.114.5.85:49701
+2026/06/30 14:22:38 INF [RTSP] [session 6fc3c79c] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:22:41 INF [RTSP] [session f8525bcd] destroyed: torn down by 100.114.5.85:49700
+2026/06/30 14:22:41 INF [RTSP] [conn 100.114.5.85:49700] closed: received unexpected interleaved frame
+2026/06/30 14:22:50 INF [RTSP] [session 6fc3c79c] destroyed: torn down by 100.114.5.85:49701
+2026/06/30 14:22:50 INF [RTSP] [conn 100.114.5.85:49701] closed: EOF
+2026/06/30 14:22:50 INF [RTSP] [conn 100.114.5.85:49702] opened
+2026/06/30 14:22:50 INF [RTSP] [session b96e27b8] created by 100.114.5.85:49702
+2026/06/30 14:22:51 INF [RTSP] [session b96e27b8] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:23:06 INF [RTSP] [session b96e27b8] destroyed: torn down by 100.114.5.85:49702
+2026/06/30 14:23:06 INF [RTSP] [conn 100.114.5.85:49702] closed: EOF
+2026/06/30 14:23:40 INF [RTSP] [conn 100.114.5.85:49710] opened
+2026/06/30 14:23:40 INF [RTSP] [session c686079c] created by 100.114.5.85:49710
+2026/06/30 14:23:40 INF [RTSP] [session c686079c] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 14:23:42 INF [RTSP] [conn 100.114.5.85:49711] opened
+2026/06/30 14:23:42 INF [RTSP] [session 538b659c] created by 100.114.5.85:49711
+2026/06/30 14:23:42 INF [RTSP] [session 538b659c] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:23:57 INF [RTSP] [session 538b659c] destroyed: torn down by 100.114.5.85:49711
+2026/06/30 14:23:57 INF [RTSP] [conn 100.114.5.85:49711] closed: EOF
+2026/06/30 14:24:07 INF [RTSP] [conn 100.114.5.85:49718] opened
+2026/06/30 14:24:07 INF [RTSP] [session 386bcfcd] created by 100.114.5.85:49718
+2026/06/30 14:24:07 INF [RTSP] [session 386bcfcd] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:24:12 WAR [RTSP] [session c686079c] reader is too slow, discarding 180 frames
+2026/06/30 14:24:13 WAR [RTSP] [session c686079c] reader is too slow, discarding 293 frames
+2026/06/30 14:24:14 WAR [RTSP] [session c686079c] reader is too slow, discarding 287 frames
+2026/06/30 14:24:15 WAR [RTSP] [session c686079c] reader is too slow, discarding 283 frames
+2026/06/30 14:24:16 WAR [RTSP] [session c686079c] reader is too slow, discarding 295 frames
+2026/06/30 14:24:17 WAR [RTSP] [session c686079c] reader is too slow, discarding 290 frames
+2026/06/30 14:24:18 WAR [RTSP] [session c686079c] reader is too slow, discarding 282 frames
+2026/06/30 14:24:19 WAR [RTSP] [session c686079c] reader is too slow, discarding 118 frames
+2026/06/30 14:24:22 INF [RTSP] [session 386bcfcd] destroyed: torn down by 100.114.5.85:49718
+2026/06/30 14:24:22 INF [RTSP] [conn 100.114.5.85:49718] closed: EOF
+2026/06/30 14:24:23 INF [RTSP] [conn 100.114.5.85:49729] opened
+2026/06/30 14:24:23 INF [RTSP] [session 0e0b7924] created by 100.114.5.85:49729
+2026/06/30 14:24:23 INF [RTSP] [session 0e0b7924] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:24:30 WAR [RTSP] [session 6ec19c48] 16 RTP packets lost
+2026/06/30 14:24:30 WAR [path cam] 11 processing errors, last was: invalid FU-A packet (non-starting)
+2026/06/30 14:24:31 INF [RTSP] [session 0e0b7924] destroyed: torn down by 100.114.5.85:49729
+2026/06/30 14:24:31 INF [RTSP] [conn 100.114.5.85:49729] closed: EOF
+2026/06/30 14:24:50 INF [RTSP] [conn 100.114.5.85:49736] opened
+2026/06/30 14:24:50 INF [RTSP] [session 305522fc] created by 100.114.5.85:49736
+2026/06/30 14:24:50 INF [RTSP] [session 305522fc] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:24:55 WAR [RTSP] [session c686079c] reader is too slow, discarding 71 frames
+2026/06/30 14:24:56 WAR [RTSP] [session c686079c] reader is too slow, discarding 289 frames
+2026/06/30 14:24:57 WAR [RTSP] [session c686079c] reader is too slow, discarding 280 frames
+2026/06/30 14:24:58 WAR [RTSP] [session c686079c] reader is too slow, discarding 309 frames
+2026/06/30 14:24:59 WAR [RTSP] [session c686079c] reader is too slow, discarding 309 frames
+2026/06/30 14:25:00 WAR [RTSP] [session c686079c] reader is too slow, discarding 287 frames
+2026/06/30 14:25:01 WAR [RTSP] [session c686079c] reader is too slow, discarding 292 frames
+2026/06/30 14:25:02 WAR [RTSP] [session c686079c] reader is too slow, discarding 288 frames
+2026/06/30 14:25:03 INF [RTSP] [conn 100.114.5.85:49710] closed: terminated
+2026/06/30 14:25:03 INF [RTSP] [session c686079c] destroyed: write tcp 100.110.244.54:8554->100.114.5.85:49710: i/o timeout
+2026/06/30 14:25:50 INF [RTSP] [conn 100.114.5.85:49736] closed: read tcp 100.110.244.54:8554->100.114.5.85:49736: i/o timeout
+2026/06/30 14:25:50 INF [RTSP] [session 305522fc] destroyed: session timed out
+2026/06/30 14:27:35 INF [RTSP] [conn 100.114.5.85:49754] opened
+2026/06/30 14:27:35 INF [RTSP] [session 768b1318] created by 100.114.5.85:49754
+2026/06/30 14:27:35 INF [RTSP] [session 768b1318] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:27:46 INF [RTSP] [conn 100.114.5.85:49756] opened
+2026/06/30 14:27:46 INF [RTSP] [session d98b453f] created by 100.114.5.85:49756
+2026/06/30 14:27:47 INF [RTSP] [session d98b453f] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 14:27:50 INF [RTSP] [session 768b1318] destroyed: torn down by 100.114.5.85:49754
+2026/06/30 14:27:50 INF [RTSP] [conn 100.114.5.85:49754] closed: EOF
+2026/06/30 14:27:50 INF [RTSP] [conn 100.114.5.85:49757] opened
+2026/06/30 14:27:51 INF [RTSP] [session 48d9ecfc] created by 100.114.5.85:49757
+2026/06/30 14:27:51 INF [RTSP] [session 48d9ecfc] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:28:06 INF [RTSP] [session 48d9ecfc] destroyed: torn down by 100.114.5.85:49757
+2026/06/30 14:28:06 INF [RTSP] [conn 100.114.5.85:49757] closed: EOF
+2026/06/30 14:28:29 INF [RTSP] [session d98b453f] destroyed: torn down by 100.114.5.85:49756
+2026/06/30 14:28:29 INF [RTSP] [conn 100.114.5.85:49756] closed: read tcp 100.110.244.54:8554->100.114.5.85:49756: read: connection reset by peer
+2026/06/30 14:28:29 INF [RTSP] [conn 100.114.5.85:49759] opened
+2026/06/30 14:28:30 INF [RTSP] [session 94d45145] created by 100.114.5.85:49759
+2026/06/30 14:28:30 INF [RTSP] [session 94d45145] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:28:37 INF shutting down gracefully
+2026/06/30 14:28:37 INF [SRT] closing
+2026/06/30 14:28:37 INF [MoQ] closing
+2026/06/30 14:28:37 INF [WebRTC] closing
+2026/06/30 14:28:37 INF [HLS] closing
+2026/06/30 14:28:37 INF [RTMP] closing
+2026/06/30 14:28:37 INF [RTSP] closing
+2026/06/30 14:28:37 INF [RTSP] [conn 100.114.5.85:49759] closed: terminated
+2026/06/30 14:28:37 INF [RTSP] [conn 100.110.244.54:49036] closed: terminated
+2026/06/30 14:28:37 INF [RTSP] [session 94d45145] destroyed: terminated
+2026/06/30 14:28:37 INF [RTSP] [session 6ec19c48] destroyed: terminated
+2026/06/30 14:28:37 INF waiting for running hooks
+2026/06/30 14:28:39 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:28:39 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:28:39 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 14:28:39 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 14:28:39 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 14:28:39 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 14:28:39 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 14:28:39 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 14:28:39 INF [RTSP] [conn 100.110.244.54:40118] opened
+2026/06/30 14:28:39 INF [RTSP] [conn 100.110.244.54:40118] closed: EOF
+2026/06/30 14:28:40 INF [RTSP] [conn 100.110.244.54:40128] opened
+2026/06/30 14:28:40 INF [RTSP] [session 8c801781] created by 100.110.244.54:40128
+2026/06/30 14:28:40 INF [path cam] stream is available and online, 1 track (H264)
+2026/06/30 14:28:40 INF [RTSP] [session 8c801781] is publishing to path 'cam'
+2026/06/30 14:28:40 INF [path cam] RTP packets are too big (1460 > 1440), remuxing them into smaller ones
+2026/06/30 14:28:48 INF [RTSP] [conn 100.114.5.85:49761] opened
+2026/06/30 14:28:49 INF [RTSP] [session 7f2908d3] created by 100.114.5.85:49761
+2026/06/30 14:28:49 INF [RTSP] [session 7f2908d3] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 14:29:53 INF [RTSP] [session 8c801781] destroyed: torn down by 100.110.244.54:40128
+2026/06/30 14:29:53 INF [RTSP] [conn 100.114.5.85:49761] closed: terminated
+2026/06/30 14:29:53 INF [RTSP] [conn 100.110.244.54:40128] closed: EOF
+2026/06/30 14:29:53 INF [RTSP] [session 7f2908d3] destroyed: terminated
+2026/06/30 14:29:54 INF [RTSP] [conn 100.110.244.54:49708] opened
+2026/06/30 14:29:54 INF [RTSP] [conn 100.110.244.54:49708] closed: EOF
+2026/06/30 14:29:54 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:29:54 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:29:54 ERR listen udp :8000: bind: address already in use
+2026/06/30 14:29:54 INF waiting for running hooks
+2026/06/30 14:29:55 INF [RTSP] [conn 100.110.244.54:49724] opened
+2026/06/30 14:29:55 INF [RTSP] [session 8fde8cfd] created by 100.110.244.54:49724
+2026/06/30 14:29:55 INF [path cam] stream is available and online, 1 track (H264)
+2026/06/30 14:29:55 INF [RTSP] [session 8fde8cfd] is publishing to path 'cam'
+2026/06/30 14:29:55 INF [path cam] RTP packets are too big (1460 > 1440), remuxing them into smaller ones
+2026/06/30 14:29:56 INF shutting down gracefully
+2026/06/30 14:29:56 INF [SRT] closing
+2026/06/30 14:29:56 INF [MoQ] closing
+2026/06/30 14:29:56 INF [WebRTC] closing
+2026/06/30 14:29:56 INF [HLS] closing
+2026/06/30 14:29:56 INF [RTMP] closing
+2026/06/30 14:29:56 INF [RTSP] closing
+2026/06/30 14:29:56 INF [RTSP] [conn 100.110.244.54:49724] closed: terminated
+2026/06/30 14:29:56 INF [RTSP] [session 8fde8cfd] destroyed: terminated
+2026/06/30 14:29:56 INF waiting for running hooks
+2026/06/30 14:29:57 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:29:57 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:29:57 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 14:29:57 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 14:29:57 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 14:29:57 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 14:29:57 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 14:29:57 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 14:29:57 INF [RTSP] [conn 100.110.244.54:42626] opened
+2026/06/30 14:29:57 INF [RTSP] [conn 100.110.244.54:42626] closed: EOF
+2026/06/30 14:29:58 INF [RTSP] [conn 100.110.244.54:42638] opened
+2026/06/30 14:29:58 INF [RTSP] [session a9b142cd] created by 100.110.244.54:42638
+2026/06/30 14:29:58 INF [path cam] stream is available and online, 1 track (H264)
+2026/06/30 14:29:58 INF [RTSP] [session a9b142cd] is publishing to path 'cam'
+2026/06/30 14:29:58 INF [path cam] RTP packets are too big (1460 > 1440), remuxing them into smaller ones
+2026/06/30 14:30:00 INF [RTSP] [conn 100.114.5.85:49762] opened
+2026/06/30 14:30:00 INF [RTSP] [session bd196a82] created by 100.114.5.85:49762
+2026/06/30 14:30:01 INF [RTSP] [session bd196a82] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:30:01 INF [RTSP] [conn 100.114.5.85:49764] opened
+2026/06/30 14:30:02 INF [RTSP] [session fc5ecee5] created by 100.114.5.85:49764
+2026/06/30 14:30:02 INF [RTSP] [session fc5ecee5] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 14:30:06 INF [RTSP] [session bd196a82] destroyed: torn down by 100.114.5.85:49762
+2026/06/30 14:30:06 INF [RTSP] [conn 100.114.5.85:49762] closed: EOF
+2026/06/30 14:32:08 INF reloading configuration (file changed)
+2026/06/30 14:32:59 INF reloading configuration (file changed)
+2026/06/30 14:34:02 INF shutting down gracefully
+2026/06/30 14:34:02 INF [SRT] closing
+2026/06/30 14:34:02 INF [MoQ] closing
+2026/06/30 14:34:02 INF [WebRTC] closing
+2026/06/30 14:34:02 INF [HLS] closing
+2026/06/30 14:34:02 INF [RTMP] closing
+2026/06/30 14:34:02 INF [RTSP] closing
+2026/06/30 14:34:02 INF [RTSP] [conn 100.114.5.85:49764] closed: terminated
+2026/06/30 14:34:02 INF [RTSP] [session fc5ecee5] destroyed: terminated
+2026/06/30 14:34:02 INF [RTSP] [conn 100.110.244.54:42638] closed: terminated
+2026/06/30 14:34:02 INF [RTSP] [session a9b142cd] destroyed: terminated
+2026/06/30 14:34:02 INF waiting for running hooks
+2026/06/30 14:34:03 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:34:03 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:34:03 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 14:34:03 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 14:34:03 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 14:34:03 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 14:34:03 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 14:34:03 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 14:34:04 INF [RTSP] [conn 100.110.244.54:40888] opened
+2026/06/30 14:34:04 INF [RTSP] [conn 100.110.244.54:40888] closed: EOF
+2026/06/30 14:34:04 INF [RTSP] [conn 100.110.244.54:40890] opened
+2026/06/30 14:34:04 INF [RTSP] [session 0c6bfbb6] created by 100.110.244.54:40890
+2026/06/30 14:34:04 INF [path cam] stream is available and online, 1 track (H264)
+2026/06/30 14:34:04 INF [RTSP] [session 0c6bfbb6] is publishing to path 'cam'
+2026/06/30 14:34:04 INF [path cam] RTP packets are too big (1460 > 1440), remuxing them into smaller ones
+2026/06/30 14:34:13 INF [RTSP] [conn 100.114.5.85:49781] opened
+2026/06/30 14:34:14 INF [RTSP] [conn 100.114.5.85:49781] closed: EOF
+2026/06/30 14:34:14 INF [RTSP] [conn 100.114.5.85:49782] opened
+2026/06/30 14:34:14 INF [RTSP] [conn 100.114.5.85:49782] closed: EOF
+2026/06/30 14:34:15 INF [RTSP] [conn 100.114.5.85:49783] opened
+2026/06/30 14:34:15 INF [RTSP] [conn 100.114.5.85:49783] closed: EOF
+2026/06/30 14:34:15 INF [RTSP] [conn 100.114.5.85:49784] opened
+2026/06/30 14:34:15 INF [RTSP] [session 89a963a7] created by 100.114.5.85:49784
+2026/06/30 14:34:15 INF [RTSP] [conn 100.114.5.85:49784] closed: invalid SETUP path. This typically happens when VLC fails a request, and then switches to an unsupported RTSP dialect
+2026/06/30 14:34:15 INF [RTSP] [session 89a963a7] destroyed: not in use
+2026/06/30 14:34:15 INF [RTSP] [conn 100.114.5.85:49785] opened
+2026/06/30 14:34:15 INF [RTSP] [session 9c8430ce] created by 100.114.5.85:49785
+2026/06/30 14:34:15 INF [RTSP] [session 9c8430ce] destroyed: not in use
+2026/06/30 14:34:15 INF [RTSP] [conn 100.114.5.85:49785] closed: invalid SETUP path. This typically happens when VLC fails a request, and then switches to an unsupported RTSP dialect
+2026/06/30 14:34:16 INF [RTSP] [conn 100.114.5.85:49786] opened
+2026/06/30 14:34:16 INF [RTSP] [session ad8e740d] created by 100.114.5.85:49786
+2026/06/30 14:34:16 INF [RTSP] [session ad8e740d] destroyed: not in use
+2026/06/30 14:34:16 INF [RTSP] [conn 100.114.5.85:49786] closed: invalid SETUP path. This typically happens when VLC fails a request, and then switches to an unsupported RTSP dialect
+2026/06/30 14:34:22 INF [HLS] connection 100.110.244.54:39476 failed to authenticate: authentication failed
+2026/06/30 14:34:40 INF [RTSP] [conn 100.114.5.85:49787] opened
+2026/06/30 14:34:43 INF [RTSP] [conn 100.114.5.85:49787] closed: EOF
+2026/06/30 14:34:43 INF [RTSP] [conn 100.114.5.85:49788] opened
+2026/06/30 14:34:46 INF [RTSP] [conn 100.114.5.85:49788] closed: EOF
+2026/06/30 14:34:46 INF [RTSP] [conn 100.114.5.85:49789] opened
+2026/06/30 14:34:46 INF [RTSP] [conn 100.114.5.85:49790] opened
+2026/06/30 14:34:46 INF [RTSP] [conn 100.114.5.85:49789] closed: EOF
+2026/06/30 14:34:47 INF [RTSP] [conn 100.114.5.85:49790] closed: EOF
+2026/06/30 14:34:47 INF [RTSP] [conn 100.114.5.85:49794] opened
+2026/06/30 14:34:47 INF [RTSP] [conn 100.114.5.85:49794] closed: EOF
+2026/06/30 14:34:48 INF [RTSP] [conn 100.114.5.85:49795] opened
+2026/06/30 14:34:48 INF [RTSP] [conn 100.114.5.85:49795] closed: EOF
+2026/06/30 14:34:48 INF [RTSP] [conn 100.114.5.85:49796] opened
+2026/06/30 14:34:48 INF [RTSP] [session c15f9c31] created by 100.114.5.85:49796
+2026/06/30 14:34:48 INF [RTSP] [session c15f9c31] destroyed: not in use
+2026/06/30 14:34:48 INF [RTSP] [conn 100.114.5.85:49796] closed: invalid SETUP path. This typically happens when VLC fails a request, and then switches to an unsupported RTSP dialect
+2026/06/30 14:34:49 INF [RTSP] [conn 100.114.5.85:49797] opened
+2026/06/30 14:34:49 INF [RTSP] [session ab8ea2f5] created by 100.114.5.85:49797
+2026/06/30 14:34:49 INF [RTSP] [session ab8ea2f5] destroyed: not in use
+2026/06/30 14:34:49 INF [RTSP] [conn 100.114.5.85:49797] closed: invalid SETUP path. This typically happens when VLC fails a request, and then switches to an unsupported RTSP dialect
+2026/06/30 14:34:49 INF [RTSP] [conn 100.114.5.85:49798] opened
+2026/06/30 14:34:49 INF [RTSP] [session d5b5a9d2] created by 100.114.5.85:49798
+2026/06/30 14:34:49 INF [RTSP] [conn 100.114.5.85:49798] closed: invalid SETUP path. This typically happens when VLC fails a request, and then switches to an unsupported RTSP dialect
+2026/06/30 14:34:49 INF [RTSP] [session d5b5a9d2] destroyed: not in use
+2026/06/30 14:35:25 INF [HLS] [muxer cam] created (requested by 100.110.244.54:41516)
+2026/06/30 14:35:25 INF [HLS] [muxer cam] is converting into HLS, 1 track (H264)
+2026/06/30 14:35:25 INF [HLS] [session 79f30c17] created by 100.110.244.54:41516, reading from muxer 'cam'
+2026/06/30 14:38:17 INF reloading configuration (file changed)
+2026/06/30 14:38:45 INF [HLS] [session 79f30c17] closed: inactive
+2026/06/30 14:38:50 INF reloading configuration (file changed)
+2026/06/30 14:39:08 INF [HLS] [session e4fc252e] created by 100.110.244.54:39740, reading from muxer 'cam'
+2026/06/30 14:39:10 INF [HLS] [session aba90759] created by 100.110.244.54:39744, reading from muxer 'cam'
+2026/06/30 14:39:28 INF [HLS] [session 1e96e883] created by 100.110.244.54:39744, reading from muxer 'cam'
+2026/06/30 14:39:45 INF [HLS] [session e4fc252e] closed: inactive
+2026/06/30 14:39:45 INF [HLS] [session aba90759] closed: inactive
+2026/06/30 14:40:00 INF [HLS] [session 153f6b7f] created by 100.110.244.54:39744, reading from muxer 'cam'
+2026/06/30 14:40:05 INF [HLS] [session 1e96e883] closed: inactive
+2026/06/30 14:40:09 INF [HLS] [session 2e22b89e] created by 100.110.244.54:38652, reading from muxer 'cam'
+2026/06/30 14:40:35 INF [HLS] [session 153f6b7f] closed: inactive
+2026/06/30 14:41:25 INF [HLS] [session 2e22b89e] closed: inactive
+2026/06/30 14:41:37 INF shutting down gracefully
+2026/06/30 14:41:37 INF [SRT] closing
+2026/06/30 14:41:37 INF [MoQ] closing
+2026/06/30 14:41:37 INF [WebRTC] closing
+2026/06/30 14:41:37 INF [HLS] closing
+2026/06/30 14:41:37 INF [HLS] [muxer cam] destroyed: terminated
+2026/06/30 14:41:37 INF [RTMP] closing
+2026/06/30 14:41:37 INF [RTSP] closing
+2026/06/30 14:41:37 INF [RTSP] [conn 100.110.244.54:40890] closed: terminated
+2026/06/30 14:41:37 INF [RTSP] [session 0c6bfbb6] destroyed: terminated
+2026/06/30 14:41:37 INF waiting for running hooks
+2026/06/30 14:41:38 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:41:38 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:41:38 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 14:41:38 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 14:41:38 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 14:41:38 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 14:41:38 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 14:41:38 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 14:41:39 INF shutting down gracefully
+2026/06/30 14:41:39 INF [SRT] closing
+2026/06/30 14:41:39 INF [MoQ] closing
+2026/06/30 14:41:39 INF [WebRTC] closing
+2026/06/30 14:41:39 INF [HLS] closing
+2026/06/30 14:41:39 INF [RTMP] closing
+2026/06/30 14:41:39 INF [RTSP] closing
+2026/06/30 14:41:39 INF waiting for running hooks
+2026/06/30 14:41:46 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:41:46 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:41:46 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 14:41:46 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 14:41:46 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 14:41:46 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 14:41:46 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 14:41:46 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 14:41:46 INF [RTSP] [conn 100.110.244.54:58234] opened
+2026/06/30 14:41:46 INF [RTSP] [conn 100.110.244.54:58234] closed: EOF
+2026/06/30 14:41:47 INF [RTSP] [conn 100.110.244.54:58246] opened
+2026/06/30 14:41:47 INF [RTSP] [session 25b9d758] created by 100.110.244.54:58246
+2026/06/30 14:41:47 INF [path cam] stream is available and online, 1 track (H264)
+2026/06/30 14:41:47 INF [RTSP] [session 25b9d758] is publishing to path 'cam'
+2026/06/30 14:41:47 INF [path cam] RTP packets are too big (1460 > 1440), remuxing them into smaller ones
+2026/06/30 14:42:00 INF [HLS] [muxer cam] created (requested by 100.110.244.54:47554)
+2026/06/30 14:42:00 INF [HLS] [muxer cam] is converting into HLS, 1 track (H264)
+2026/06/30 14:42:00 INF [HLS] [session 2a378ed3] created by 100.110.244.54:47554, reading from muxer 'cam'
+2026/06/30 14:43:08 INF reloading configuration (file changed)
+2026/06/30 14:43:13 INF [RTSP] [conn 100.114.5.85:49879] opened
+2026/06/30 14:43:17 INF [RTSP] [conn 100.114.5.85:49879] closed: EOF
+2026/06/30 14:43:26 INF shutting down gracefully
+2026/06/30 14:43:26 INF [SRT] closing
+2026/06/30 14:43:26 INF [MoQ] closing
+2026/06/30 14:43:26 INF [WebRTC] closing
+2026/06/30 14:43:26 INF [HLS] closing
+2026/06/30 14:43:26 INF [HLS] [session 2a378ed3] closed: muxer destroyed
+2026/06/30 14:43:26 INF [HLS] [muxer cam] destroyed: terminated
+2026/06/30 14:43:26 INF [RTMP] closing
+2026/06/30 14:43:26 INF [RTSP] closing
+2026/06/30 14:43:26 INF [RTSP] [conn 100.110.244.54:58246] closed: terminated
+2026/06/30 14:43:26 INF [RTSP] [session 25b9d758] destroyed: terminated
+2026/06/30 14:43:26 INF waiting for running hooks
+2026/06/30 14:43:27 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:43:27 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:43:27 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 14:43:27 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 14:43:27 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 14:43:27 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 14:43:27 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 14:43:27 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 14:43:28 INF [RTSP] [conn 100.110.244.54:46232] opened
+2026/06/30 14:43:28 INF [RTSP] [conn 100.110.244.54:46232] closed: EOF
+2026/06/30 14:43:28 INF [RTSP] [conn 100.110.244.54:46248] opened
+2026/06/30 14:43:28 INF [RTSP] [session a5790e68] created by 100.110.244.54:46248
+2026/06/30 14:43:28 INF [path cam] stream is available and online, 1 track (H264)
+2026/06/30 14:43:28 INF [RTSP] [session a5790e68] is publishing to path 'cam'
+2026/06/30 14:43:28 INF [path cam] RTP packets are too big (1460 > 1440), remuxing them into smaller ones
+2026/06/30 14:43:31 INF [HLS] [muxer cam] created (requested by 100.110.244.54:50864)
+2026/06/30 14:43:31 INF [HLS] [muxer cam] is converting into HLS, 1 track (H264)
+2026/06/30 14:43:31 INF [HLS] [session 80e5f300] created by 100.110.244.54:50864, reading from muxer 'cam'
+2026/06/30 14:43:33 INF [RTSP] [conn 100.114.5.85:49885] opened
+2026/06/30 14:43:33 INF [RTSP] [session e0cfaa57] created by 100.114.5.85:49885
+2026/06/30 14:43:33 INF [RTSP] [conn 100.114.5.85:49885] closed: invalid SETUP path. This typically happens when VLC fails a request, and then switches to an unsupported RTSP dialect
+2026/06/30 14:43:33 INF [RTSP] [session e0cfaa57] destroyed: not in use
+2026/06/30 14:43:34 INF [RTSP] [conn 100.114.5.85:49886] opened
+2026/06/30 14:43:34 INF [RTSP] [session 2948986e] created by 100.114.5.85:49886
+2026/06/30 14:43:34 INF [RTSP] [session 2948986e] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:43:38 INF [RTSP] [session 2948986e] destroyed: torn down by 100.114.5.85:49886
+2026/06/30 14:43:38 INF [RTSP] [conn 100.114.5.85:49886] closed: EOF
+2026/06/30 14:43:42 INF [RTSP] [conn 100.114.5.85:49887] opened
+2026/06/30 14:43:42 INF [RTSP] [session 61248ba4] created by 100.114.5.85:49887
+2026/06/30 14:43:43 INF [RTSP] [session 61248ba4] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 14:43:49 INF [HLS] [session 539b2674] created by 100.110.244.54:46840, reading from muxer 'cam'
+2026/06/30 14:44:01 INF [HLS] [session 80e5f300] closed: inactive
+2026/06/30 14:44:04 INF [HLS] [session 26d5e199] created by 100.110.244.54:46840, reading from muxer 'cam'
+2026/06/30 14:44:31 INF [HLS] [session 539b2674] closed: inactive
+2026/06/30 14:44:41 INF [HLS] [session 26d5e199] closed: inactive
+2026/06/30 14:45:11 INF [HLS] [muxer cam] destroyed: not used anymore
+2026/06/30 14:45:55 INF [RTSP] [conn 100.110.244.54:42676] opened
+2026/06/30 14:45:55 INF [RTSP] [conn 100.110.244.54:42676] closed: EOF
+2026/06/30 14:45:55 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 14:45:55 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 14:45:55 ERR listen udp :8000: bind: address already in use
+2026/06/30 14:45:55 INF waiting for running hooks
+2026/06/30 14:46:28 INF [RTSP] [conn 100.114.5.85:49894] opened
+2026/06/30 14:46:29 INF [RTSP] [session 96be7414] created by 100.114.5.85:49894
+2026/06/30 14:46:29 INF [RTSP] [session 96be7414] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:46:40 WAR [RTSP] [session 61248ba4] reader is too slow, discarding 182 frames
+2026/06/30 14:46:41 WAR [RTSP] [session 61248ba4] reader is too slow, discarding 407 frames
+2026/06/30 14:46:42 WAR [RTSP] [session 61248ba4] reader is too slow, discarding 368 frames
+2026/06/30 14:46:43 WAR [RTSP] [session 61248ba4] reader is too slow, discarding 359 frames
+2026/06/30 14:46:44 WAR [RTSP] [session 61248ba4] reader is too slow, discarding 283 frames
+2026/06/30 14:46:45 WAR [RTSP] [session 61248ba4] reader is too slow, discarding 240 frames
+2026/06/30 14:46:46 WAR [RTSP] [session 61248ba4] reader is too slow, discarding 262 frames
+2026/06/30 14:46:47 WAR [RTSP] [session 61248ba4] reader is too slow, discarding 170 frames
+2026/06/30 14:46:48 INF [RTSP] [conn 100.114.5.85:49887] closed: terminated
+2026/06/30 14:46:48 INF [RTSP] [session 61248ba4] destroyed: write tcp 100.110.244.54:8554->100.114.5.85:49887: i/o timeout
+2026/06/30 14:47:29 INF [RTSP] [conn 100.114.5.85:49894] closed: read tcp 100.110.244.54:8554->100.114.5.85:49894: i/o timeout
+2026/06/30 14:47:29 INF [RTSP] [session 96be7414] destroyed: session timed out
+2026/06/30 14:48:04 WAR [RTSP] [session a5790e68] 5 RTP packets lost
+2026/06/30 14:52:17 INF [RTSP] [conn 100.114.5.85:49933] opened
+2026/06/30 14:52:17 INF [RTSP] [session 705d10d9] created by 100.114.5.85:49933
+2026/06/30 14:52:17 INF [RTSP] [session 705d10d9] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:52:22 INF [RTSP] [conn 100.114.5.85:49935] opened
+2026/06/30 14:52:23 INF [RTSP] [session 705d10d9] destroyed: torn down by 100.114.5.85:49933
+2026/06/30 14:52:23 INF [RTSP] [conn 100.114.5.85:49933] closed: EOF
+2026/06/30 14:52:23 INF [RTSP] [session 3db21560] created by 100.114.5.85:49935
+2026/06/30 14:52:23 INF [RTSP] [conn 100.114.5.85:49936] opened
+2026/06/30 14:52:23 INF [RTSP] [session 3db21560] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 14:52:23 INF [RTSP] [session acd4ea34] created by 100.114.5.85:49936
+2026/06/30 14:52:23 INF [RTSP] [session acd4ea34] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:52:30 INF [RTSP] [session acd4ea34] destroyed: torn down by 100.114.5.85:49936
+2026/06/30 14:52:30 INF [RTSP] [conn 100.114.5.85:49936] closed: EOF
+2026/06/30 14:52:50 INF [RTSP] [conn 100.114.5.85:49937] opened
+2026/06/30 14:52:58 WAR [RTSP] [session 3db21560] reader is too slow, discarding 39 frames
+2026/06/30 14:52:59 WAR [RTSP] [session 3db21560] reader is too slow, discarding 176 frames
+2026/06/30 14:53:00 WAR [RTSP] [session 3db21560] reader is too slow, discarding 230 frames
+2026/06/30 14:53:01 WAR [RTSP] [session 3db21560] reader is too slow, discarding 208 frames
+2026/06/30 14:53:02 WAR [RTSP] [session 3db21560] reader is too slow, discarding 204 frames
+2026/06/30 14:53:03 WAR [RTSP] [session 3db21560] reader is too slow, discarding 208 frames
+2026/06/30 14:53:04 WAR [RTSP] [session 3db21560] reader is too slow, discarding 258 frames
+2026/06/30 14:53:04 INF [RTSP] [conn 100.114.5.85:49935] closed: terminated
+2026/06/30 14:53:04 INF [RTSP] [session 3db21560] destroyed: write tcp 100.110.244.54:8554->100.114.5.85:49935: i/o timeout
+2026/06/30 14:53:12 INF [RTSP] [conn 100.114.5.85:49937] closed: EOF
+2026/06/30 14:57:58 INF [RTSP] [conn 100.114.5.85:49976] opened
+2026/06/30 14:57:58 INF [RTSP] [session 4312d9b4] created by 100.114.5.85:49976
+2026/06/30 14:57:58 INF [RTSP] [session 4312d9b4] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:58:04 INF [RTSP] [session 4312d9b4] destroyed: torn down by 100.114.5.85:49976
+2026/06/30 14:58:04 INF [RTSP] [conn 100.114.5.85:49976] closed: EOF
+2026/06/30 14:58:04 INF [RTSP] [conn 100.114.5.85:49979] opened
+2026/06/30 14:58:04 INF [RTSP] [session f1a7bfa4] created by 100.114.5.85:49979
+2026/06/30 14:58:05 INF [RTSP] [session f1a7bfa4] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:58:08 INF [RTSP] [conn 100.114.5.85:49981] opened
+2026/06/30 14:58:09 INF [RTSP] [session 928ed9f5] created by 100.114.5.85:49981
+2026/06/30 14:58:09 INF [RTSP] [session 928ed9f5] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 14:58:12 INF [RTSP] [session f1a7bfa4] destroyed: torn down by 100.114.5.85:49979
+2026/06/30 14:58:12 INF [RTSP] [conn 100.114.5.85:49979] closed: EOF
+2026/06/30 14:58:12 INF [RTSP] [conn 100.114.5.85:49982] opened
+2026/06/30 14:58:13 INF [RTSP] [session a8928593] created by 100.114.5.85:49982
+2026/06/30 14:58:13 INF [RTSP] [session a8928593] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:58:21 INF [RTSP] [session a8928593] destroyed: torn down by 100.114.5.85:49982
+2026/06/30 14:58:21 INF [RTSP] [conn 100.114.5.85:49982] closed: EOF
+2026/06/30 14:58:24 INF [RTSP] [session 928ed9f5] destroyed: torn down by 100.114.5.85:49981
+2026/06/30 14:58:24 INF [RTSP] [conn 100.114.5.85:49981] closed: received unexpected interleaved frame
+2026/06/30 14:58:24 INF [RTSP] [conn 100.114.5.85:49983] opened
+2026/06/30 14:58:25 INF [RTSP] [session 915f17bf] created by 100.114.5.85:49983
+2026/06/30 14:58:25 INF [RTSP] [session 915f17bf] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 14:58:27 INF [RTSP] [conn 100.114.5.85:49983] closed: EOF
+2026/06/30 14:59:25 INF [RTSP] [session 915f17bf] destroyed: session timed out
+2026/06/30 15:08:05 INF [RTSP] [conn 100.114.5.85:50005] opened
+2026/06/30 15:08:05 INF [RTSP] [conn 100.114.5.85:50005] closed: session not found
+2026/06/30 15:08:06 INF [RTSP] [conn 100.114.5.85:50013] opened
+2026/06/30 15:08:06 INF [RTSP] [session 4e62b214] created by 100.114.5.85:50013
+2026/06/30 15:08:06 INF [RTSP] [session 4e62b214] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 15:11:35 INF [RTSP] [conn 100.114.5.85:50015] opened
+2026/06/30 15:11:36 INF [RTSP] [session 1606964e] created by 100.114.5.85:50015
+2026/06/30 15:11:36 INF [RTSP] [session 1606964e] is reading from path 'cam', with UDP, 1 track (H264)
+2026/06/30 15:11:51 WAR [RTSP] [session 4e62b214] reader is too slow, discarding 22 frames
+2026/06/30 15:11:52 WAR [RTSP] [session 4e62b214] reader is too slow, discarding 189 frames
+2026/06/30 15:11:53 WAR [RTSP] [session 4e62b214] reader is too slow, discarding 271 frames
+2026/06/30 15:11:54 WAR [RTSP] [session 4e62b214] reader is too slow, discarding 285 frames
+2026/06/30 15:11:55 WAR [RTSP] [session 4e62b214] reader is too slow, discarding 319 frames
+2026/06/30 15:11:56 WAR [RTSP] [session 4e62b214] reader is too slow, discarding 312 frames
+2026/06/30 15:11:57 WAR [RTSP] [session 4e62b214] reader is too slow, discarding 293 frames
+2026/06/30 15:11:58 WAR [RTSP] [session 4e62b214] reader is too slow, discarding 232 frames
+2026/06/30 15:11:58 INF [RTSP] [conn 100.114.5.85:50013] closed: terminated
+2026/06/30 15:11:58 INF [RTSP] [session 4e62b214] destroyed: write tcp 100.110.244.54:8554->100.114.5.85:50013: i/o timeout
+2026/06/30 15:12:21 INF [RTSP] [conn 100.114.5.85:50015] closed: EOF
+2026/06/30 15:12:38 INF [RTSP] [session 1606964e] destroyed: session timed out
+2026/06/30 15:16:33 INF [RTSP] [conn 100.114.5.85:50031] opened
+2026/06/30 15:16:33 INF [RTSP] [session 1dfb0eb7] created by 100.114.5.85:50031
+2026/06/30 15:16:33 INF [RTSP] [session 1dfb0eb7] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 15:17:05 INF [RTSP] [conn 100.114.5.85:50031] closed: EOF
+2026/06/30 15:17:05 INF [RTSP] [session 1dfb0eb7] destroyed: not in use
+2026/06/30 15:22:47 WAR [RTSP] [session a5790e68] 6 RTP packets lost
+2026/06/30 15:33:12 WAR [RTSP] [session a5790e68] 11 RTP packets lost
+2026/06/30 15:41:00 INF [RTSP] [conn 100.114.5.85:50058] opened
+2026/06/30 15:41:01 INF [RTSP] [session 495e2e2e] created by 100.114.5.85:50058
+2026/06/30 15:41:01 INF [RTSP] [session 495e2e2e] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 15:41:23 INF shutting down gracefully
+2026/06/30 15:41:23 INF [SRT] closing
+2026/06/30 15:41:23 INF [MoQ] closing
+2026/06/30 15:41:23 INF [WebRTC] closing
+2026/06/30 15:41:23 INF [HLS] closing
+2026/06/30 15:41:23 INF [RTMP] closing
+2026/06/30 15:41:23 INF [RTSP] closing
+2026/06/30 15:41:23 INF [RTSP] [conn 100.110.244.54:46248] closed: terminated
+2026/06/30 15:41:23 INF [RTSP] [conn 100.114.5.85:50058] closed: terminated
+2026/06/30 15:41:23 INF [RTSP] [session a5790e68] destroyed: terminated
+2026/06/30 15:41:23 INF [RTSP] [session 495e2e2e] destroyed: terminated
+2026/06/30 15:41:23 INF waiting for running hooks
+2026/06/30 15:41:43 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 15:41:43 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 15:41:43 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 15:41:43 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 15:41:43 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 15:41:43 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 15:41:43 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 15:41:43 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 15:41:43 INF [RTSP] [conn 100.110.244.54:55162] opened
+2026/06/30 15:41:43 INF [RTSP] [conn 100.110.244.54:55162] closed: EOF
+2026/06/30 15:41:44 INF [RTSP] [conn 100.110.244.54:55178] opened
+2026/06/30 15:41:44 INF [RTSP] [session f98ca077] created by 100.110.244.54:55178
+2026/06/30 15:41:44 INF [path cam] stream is available and online, 1 track (H264)
+2026/06/30 15:41:44 INF [RTSP] [session f98ca077] is publishing to path 'cam'
+2026/06/30 15:41:44 INF [path cam] RTP packets are too big (1460 > 1440), remuxing them into smaller ones
+2026/06/30 15:41:45 INF [RTSP] [conn 100.114.5.85:50086] opened
+2026/06/30 15:41:45 INF [RTSP] [session a349eab4] created by 100.114.5.85:50086
+2026/06/30 15:41:45 INF [RTSP] [session a349eab4] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 15:42:39 INF shutting down gracefully
+2026/06/30 15:42:39 INF [SRT] closing
+2026/06/30 15:42:39 INF [MoQ] closing
+2026/06/30 15:42:39 INF [WebRTC] closing
+2026/06/30 15:42:39 INF [HLS] closing
+2026/06/30 15:42:39 INF [RTMP] closing
+2026/06/30 15:42:39 INF [RTSP] closing
+2026/06/30 15:42:39 INF [RTSP] [conn 100.110.244.54:55178] closed: terminated
+2026/06/30 15:42:39 INF [RTSP] [conn 100.114.5.85:50086] closed: terminated
+2026/06/30 15:42:39 INF [RTSP] [session f98ca077] destroyed: terminated
+2026/06/30 15:42:39 INF [RTSP] [session a349eab4] destroyed: terminated
+2026/06/30 15:42:39 INF waiting for running hooks
+2026/06/30 16:28:17 INF MediaMTX v1.19.2, linux, amd64
+2026/06/30 16:28:17 INF configuration loaded from /home/gifty4/github_local/tactile_UR5/execution/streaming/mediamtx.yml
+2026/06/30 16:28:17 INF [RTSP] started with listeners on 100.110.244.54:8554 (TCP/RTSP), :8000 (UDP/RTP), :8001 (UDP/RTCP)
+2026/06/30 16:28:17 INF [RTMP] started with listener on 100.110.244.54:1935 (TCP/RTMP)
+2026/06/30 16:28:17 INF [HLS] started with listener on 100.110.244.54:8888 (TCP/HTTP)
+2026/06/30 16:28:17 INF [WebRTC] started with listeners on 100.110.244.54:8889 (TCP/HTTP), :8189 (UDP/ICE)
+2026/06/30 16:28:17 INF [SRT] started with listener on 100.110.244.54:8890 (UDP/SRT)
+2026/06/30 16:28:17 INF [MoQ] started with listeners on :8892 (TCP/HTTP2), :8892 (UDP/HTTP3)
+2026/06/30 16:28:17 INF [RTSP] [conn 100.110.244.54:40380] opened
+2026/06/30 16:28:17 INF [RTSP] [conn 100.110.244.54:40380] closed: EOF
+2026/06/30 16:28:18 INF [RTSP] [conn 100.110.244.54:40388] opened
+2026/06/30 16:28:18 INF [RTSP] [session e4537706] created by 100.110.244.54:40388
+2026/06/30 16:28:18 INF [path cam] stream is available and online, 1 track (H264)
+2026/06/30 16:28:18 INF [RTSP] [session e4537706] is publishing to path 'cam'
+2026/06/30 16:28:18 INF [path cam] RTP packets are too big (1460 > 1440), remuxing them into smaller ones
+2026/06/30 16:28:32 INF [RTSP] [conn 100.114.5.85:50325] opened
+2026/06/30 16:28:32 INF [RTSP] [session ecbfa0bd] created by 100.114.5.85:50325
+2026/06/30 16:28:32 INF [RTSP] [session ecbfa0bd] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 16:30:57 INF [RTSP] [conn 100.114.5.85:50325] closed: EOF
+2026/06/30 16:30:57 INF [RTSP] [session ecbfa0bd] destroyed: not in use
+2026/06/30 16:33:35 WAR [RTSP] [session e4537706] 4 RTP packets lost
+2026/06/30 16:34:40 INF [RTSP] [conn 100.114.5.85:50556] opened
+2026/06/30 16:34:41 INF [RTSP] [session 1ac4d65e] created by 100.114.5.85:50556
+2026/06/30 16:34:41 INF [RTSP] [session 1ac4d65e] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 16:35:31 WAR [RTSP] [session 1ac4d65e] reader is too slow, discarding 169 frames
+2026/06/30 16:35:32 WAR [RTSP] [session 1ac4d65e] reader is too slow, discarding 355 frames
+2026/06/30 16:35:33 WAR [RTSP] [session 1ac4d65e] reader is too slow, discarding 309 frames
+2026/06/30 16:35:34 WAR [RTSP] [session 1ac4d65e] reader is too slow, discarding 316 frames
+2026/06/30 16:35:35 WAR [RTSP] [session 1ac4d65e] reader is too slow, discarding 193 frames
+2026/06/30 16:35:36 WAR [RTSP] [session 1ac4d65e] reader is too slow, discarding 302 frames
+2026/06/30 16:35:37 WAR [RTSP] [session 1ac4d65e] reader is too slow, discarding 279 frames
+2026/06/30 16:35:38 WAR [RTSP] [session 1ac4d65e] reader is too slow, discarding 188 frames
+2026/06/30 16:35:38 INF [RTSP] [conn 100.114.5.85:50556] closed: terminated
+2026/06/30 16:35:38 INF [RTSP] [session 1ac4d65e] destroyed: write tcp 100.110.244.54:8554->100.114.5.85:50556: i/o timeout
+2026/06/30 16:36:00 INF [RTSP] [conn 100.114.5.85:50640] opened
+2026/06/30 16:36:01 INF [RTSP] [session 64851fd6] created by 100.114.5.85:50640
+2026/06/30 16:36:01 INF [RTSP] [session 64851fd6] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 16:36:19 WAR [RTSP] [session 64851fd6] reader is too slow, discarding 85 frames
+2026/06/30 16:36:20 WAR [RTSP] [session 64851fd6] reader is too slow, discarding 250 frames
+2026/06/30 16:36:21 WAR [RTSP] [session 64851fd6] reader is too slow, discarding 216 frames
+2026/06/30 16:36:23 WAR [RTSP] [session 64851fd6] reader is too slow, discarding 209 frames
+2026/06/30 16:36:24 WAR [RTSP] [session 64851fd6] reader is too slow, discarding 187 frames
+2026/06/30 16:36:25 WAR [RTSP] [session 64851fd6] reader is too slow, discarding 238 frames
+2026/06/30 16:36:26 WAR [RTSP] [session 64851fd6] reader is too slow, discarding 253 frames
+2026/06/30 16:36:27 WAR [RTSP] [session 64851fd6] reader is too slow, discarding 360 frames
+2026/06/30 16:36:28 WAR [RTSP] [session 64851fd6] reader is too slow, discarding 278 frames
+2026/06/30 16:36:29 WAR [RTSP] [session 64851fd6] reader is too slow, discarding 276 frames
+2026/06/30 16:36:30 WAR [RTSP] [session 64851fd6] reader is too slow, discarding 408 frames
+2026/06/30 16:36:31 INF [RTSP] [conn 100.114.5.85:50640] closed: terminated
+2026/06/30 16:36:31 INF [RTSP] [session 64851fd6] destroyed: write tcp 100.110.244.54:8554->100.114.5.85:50640: i/o timeout
+2026/06/30 16:36:54 INF [RTSP] [conn 100.114.5.85:50658] opened
+2026/06/30 16:37:16 INF [RTSP] [conn 100.114.5.85:50658] closed: EOF
+2026/06/30 16:37:16 INF [RTSP] [conn 100.114.5.85:50689] opened
+2026/06/30 16:37:16 INF [RTSP] [session 2d3b99e1] created by 100.114.5.85:50689
+2026/06/30 16:37:16 INF [RTSP] [session 2d3b99e1] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 16:37:49 INF [RTSP] [session 2d3b99e1] destroyed: torn down by 100.114.5.85:50689
+2026/06/30 16:37:49 INF [RTSP] [conn 100.114.5.85:50689] closed: read tcp 100.110.244.54:8554->100.114.5.85:50689: read: connection reset by peer
+2026/06/30 16:41:41 INF [RTSP] [conn 100.114.5.85:50742] opened
+2026/06/30 16:41:41 INF [RTSP] [session 7151099c] created by 100.114.5.85:50742
+2026/06/30 16:41:42 INF [RTSP] [session 7151099c] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 16:42:26 INF [RTSP] [conn 100.114.5.85:50742] closed: EOF
+2026/06/30 16:42:26 INF [RTSP] [session 7151099c] destroyed: not in use
+2026/06/30 16:45:21 INF [RTSP] [conn 100.114.5.85:50754] opened
+2026/06/30 16:45:21 INF [RTSP] [session ad8d7091] created by 100.114.5.85:50754
+2026/06/30 16:45:21 INF [RTSP] [session ad8d7091] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 16:45:42 WAR [RTSP] [session ad8d7091] reader is too slow, discarding 7 frames
+2026/06/30 16:45:43 WAR [RTSP] [session ad8d7091] reader is too slow, discarding 305 frames
+2026/06/30 16:45:44 WAR [RTSP] [session ad8d7091] reader is too slow, discarding 186 frames
+2026/06/30 16:45:45 WAR [RTSP] [session ad8d7091] reader is too slow, discarding 263 frames
+2026/06/30 16:45:46 WAR [RTSP] [session ad8d7091] reader is too slow, discarding 251 frames
+2026/06/30 16:45:47 WAR [RTSP] [session ad8d7091] reader is too slow, discarding 283 frames
+2026/06/30 16:45:48 WAR [RTSP] [session ad8d7091] reader is too slow, discarding 273 frames
+2026/06/30 16:45:49 WAR [RTSP] [session ad8d7091] reader is too slow, discarding 263 frames
+2026/06/30 16:45:50 INF [RTSP] [conn 100.114.5.85:50754] closed: terminated
+2026/06/30 16:45:50 INF [RTSP] [session ad8d7091] destroyed: write tcp 100.110.244.54:8554->100.114.5.85:50754: i/o timeout
+2026/06/30 16:48:47 INF [RTSP] [conn 100.114.5.85:50781] opened
+2026/06/30 16:48:47 INF [RTSP] [session 84144240] created by 100.114.5.85:50781
+2026/06/30 16:48:48 INF [RTSP] [session 84144240] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 16:49:11 INF [RTSP] [conn 100.114.5.85:50781] closed: EOF
+2026/06/30 16:49:11 INF [RTSP] [session 84144240] destroyed: not in use
+2026/06/30 16:49:33 INF [RTSP] [conn 100.114.5.85:50806] opened
+2026/06/30 16:49:55 INF [RTSP] [conn 100.114.5.85:50806] closed: EOF
+2026/06/30 16:50:50 INF [RTSP] [conn 100.114.5.85:51016] opened
+2026/06/30 16:50:50 INF [RTSP] [session 514fb875] created by 100.114.5.85:51016
+2026/06/30 16:50:51 INF [RTSP] [session 514fb875] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 16:50:54 INF [RTSP] [session 514fb875] destroyed: torn down by 100.114.5.85:51016
+2026/06/30 16:50:54 INF [RTSP] [conn 100.114.5.85:51016] closed: received unexpected interleaved frame
+2026/06/30 16:50:55 INF [RTSP] [conn 100.114.5.85:51017] opened
+2026/06/30 16:50:55 INF [RTSP] [session 73ca835a] created by 100.114.5.85:51017
+2026/06/30 16:50:55 INF [RTSP] [session 73ca835a] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 16:51:24 WAR [RTSP] [session 73ca835a] reader is too slow, discarding 54 frames
+2026/06/30 16:51:25 WAR [RTSP] [session 73ca835a] reader is too slow, discarding 214 frames
+2026/06/30 16:51:26 WAR [RTSP] [session 73ca835a] reader is too slow, discarding 255 frames
+2026/06/30 16:51:27 WAR [RTSP] [session 73ca835a] reader is too slow, discarding 237 frames
+2026/06/30 16:51:28 WAR [RTSP] [session 73ca835a] reader is too slow, discarding 225 frames
+2026/06/30 16:51:29 WAR [RTSP] [session 73ca835a] reader is too slow, discarding 280 frames
+2026/06/30 16:51:30 WAR [RTSP] [session 73ca835a] reader is too slow, discarding 296 frames
+2026/06/30 16:51:31 WAR [RTSP] [session 73ca835a] reader is too slow, discarding 269 frames
+2026/06/30 16:51:32 INF [RTSP] [conn 100.114.5.85:51017] closed: terminated
+2026/06/30 16:51:32 INF [RTSP] [session 73ca835a] destroyed: write tcp 100.110.244.54:8554->100.114.5.85:51017: i/o timeout
+2026/06/30 16:51:56 INF [RTSP] [conn 100.114.5.85:51027] opened
+2026/06/30 16:51:57 INF [RTSP] [session 3ce38b41] created by 100.114.5.85:51027
+2026/06/30 16:51:57 INF [RTSP] [session 3ce38b41] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 16:52:19 INF [RTSP] [session 3ce38b41] destroyed: torn down by 100.114.5.85:51027
+2026/06/30 16:52:19 INF [RTSP] [conn 100.114.5.85:51027] closed: EOF
+2026/06/30 16:55:48 INF [RTSP] [conn 100.114.5.85:51087] opened
+2026/06/30 16:55:48 INF [RTSP] [session 61b83fe7] created by 100.114.5.85:51087
+2026/06/30 16:55:48 INF [RTSP] [session 61b83fe7] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 16:55:54 INF [RTSP] [conn 100.114.5.85:51087] closed: terminated
+2026/06/30 16:55:54 INF [RTSP] [session 61b83fe7] destroyed: write tcp 100.110.244.54:8554->100.114.5.85:51087: write: connection reset by peer
+2026/06/30 17:01:33 INF [RTSP] [conn 100.114.5.85:51125] opened
+2026/06/30 17:01:34 INF [RTSP] [session 37e9aab2] created by 100.114.5.85:51125
+2026/06/30 17:01:34 INF [RTSP] [session 37e9aab2] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 17:02:19 INF [RTSP] [session 37e9aab2] destroyed: torn down by 100.114.5.85:51125
+2026/06/30 17:02:19 INF [RTSP] [conn 100.114.5.85:51125] closed: EOF
+2026/06/30 17:07:58 INF [RTSP] [conn 100.114.5.85:51139] opened
+2026/06/30 17:07:59 INF [RTSP] [session bd97ce40] created by 100.114.5.85:51139
+2026/06/30 17:07:59 INF [RTSP] [session bd97ce40] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 17:08:20 WAR [RTSP] [session bd97ce40] reader is too slow, discarding 44 frames
+2026/06/30 17:08:21 WAR [RTSP] [session bd97ce40] reader is too slow, discarding 238 frames
+2026/06/30 17:08:22 WAR [RTSP] [session bd97ce40] reader is too slow, discarding 313 frames
+2026/06/30 17:08:23 WAR [RTSP] [session bd97ce40] reader is too slow, discarding 201 frames
+2026/06/30 17:08:24 WAR [RTSP] [session bd97ce40] reader is too slow, discarding 286 frames
+2026/06/30 17:08:25 WAR [RTSP] [session bd97ce40] reader is too slow, discarding 321 frames
+2026/06/30 17:08:26 WAR [RTSP] [session bd97ce40] reader is too slow, discarding 187 frames
+2026/06/30 17:08:27 WAR [RTSP] [session bd97ce40] reader is too slow, discarding 300 frames
+2026/06/30 17:08:27 INF [RTSP] [conn 100.114.5.85:51139] closed: terminated
+2026/06/30 17:08:27 INF [RTSP] [session bd97ce40] destroyed: write tcp 100.110.244.54:8554->100.114.5.85:51139: i/o timeout
+2026/06/30 17:23:10 WAR [RTSP] [session e4537706] 14 RTP packets lost
+2026/06/30 17:38:00 INF [RTSP] [conn 100.114.5.85:51269] opened
+2026/06/30 17:38:00 INF [RTSP] [session 86a4d5fa] created by 100.114.5.85:51269
+2026/06/30 17:38:00 INF [RTSP] [session 86a4d5fa] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 17:38:02 INF [RTSP] [session 86a4d5fa] destroyed: torn down by 100.114.5.85:51269
+2026/06/30 17:38:02 INF [RTSP] [conn 100.114.5.85:51269] closed: EOF
+2026/06/30 17:38:03 INF [RTSP] [conn 100.114.5.85:51280] opened
+2026/06/30 17:38:03 INF [RTSP] [session 59b44c31] created by 100.114.5.85:51280
+2026/06/30 17:38:03 INF [RTSP] [session 59b44c31] is reading from path 'cam', with TCP, 1 track (H264)
+2026/06/30 17:38:16 INF [RTSP] [session 59b44c31] destroyed: torn down by 100.114.5.85:51280
+2026/06/30 17:38:16 INF [RTSP] [conn 100.114.5.85:51280] closed: EOF
+2026/06/30 18:14:00 WAR [RTSP] [session e4537706] 2 RTP packets lost
+2026/06/30 18:18:52 WAR [RTSP] [session e4537706] 14 RTP packets lost
+2026/06/30 18:30:24 WAR [RTSP] [session e4537706] 13 RTP packets lost
+2026/06/30 18:43:27 WAR [RTSP] [session e4537706] 2 RTP packets lost
+2026/06/30 18:54:50 WAR [RTSP] [session e4537706] 7 RTP packets lost

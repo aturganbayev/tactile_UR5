@@ -63,6 +63,7 @@ tactile_UR5/
 ├── ur_calibration/       # ICP calibration scripts + their artifacts
 ├── pose_generation/      # generate_*.py  (surface points → touch poses)
 ├── execution/            # run_*.py + robot move/stop scripts
+│   └── streaming/        # live camera stream (mediamtx + ffmpeg)
 ├── cone_plots/           # point-cloud / normals visualisation
 ├── pyForceDAQ/           # force + pose recording (ATI Nano17)
 ├── data/                 # cone.STL + generated pose CSVs
@@ -362,6 +363,29 @@ https://github.com/user-attachments/assets/784e2b93-5495-4d04-91b1-0145607aa092
 
 ---
 
+### Live camera stream
+
+A Logitech C930 webcam mounted on the setup streams live video over the Tailscale VPN so the robot can be monitored remotely.
+
+**Start / stop the stream:**
+
+```bash
+python3 execution/streaming/stream.py
+# prompts: start / stop
+```
+
+**Access (Tailscale network only):**
+
+| Protocol | URL | Recommended client |
+|---|---|---|
+| RTSP | `rtsp://100.110.244.54:8554/cam` | VLC (low latency) |
+| HLS | `http://100.110.244.54:8888/cam` | browser |
+| WebRTC | `http://100.110.244.54:8889/cam` | browser (lowest latency) |
+
+The stream is only reachable from devices on the same Tailscale network. The camera captures at **1280×720 @ 30 fps** (MJPEG input, H.264 output, ~2 Mbit/s). Configuration is in `execution/streaming/mediamtx.yml`; the ffmpeg capture command is in `execution/streaming/start_stream.sh`.
+
+---
+
 ### Emergency stop
 
 Immediately decelerates and stops the robot (does not require mode selection).
@@ -406,6 +430,7 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `paths.py` | Central path config — absolute locations of all data files; imported by every script |
 | `pose_utils.py` | Geometry helpers (TCP↔contact conversion, normal→rotation vector, orientation tilt), **UR5 forward/inverse kinematics** (`ur5_fk`, `ur5_ik_near`) used for offline IK, and shared motion parameters (speeds, distances, tilt limits) |
 | `data/cone.STL` | CAD model of the silicone cone tool |
+| `data/egg_holder_3_revolvehole.SLDPRT` | SolidWorks part file for the egg holder fixture |
 | `geometry/extract_points.py` | Sample surface points and normals from STL |
 | `cone_plots/cone_plot.py` | Visualise sampled surface point cloud |
 | `cone_plots/cone_plot_normals.py` | Visualise surface points with corrected outward normals |
@@ -415,6 +440,10 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `pose_generation/generate_touch_poses.py` | Generate approach/press poses for the full surface |
 | `pose_generation/generate_side_strip_poses.py` | Generate poses for multiple strips around the cone, top to bottom |
 | `execution/run_side_strip_poses.py` | Execute side strip touch sequence on the robot |
+| `execution/streaming/stream.py` | Interactive script to start or stop the camera stream |
+| `execution/streaming/start_stream.sh` | Starts mediamtx RTSP server and ffmpeg camera capture |
+| `execution/streaming/stop_stream.sh` | Kills mediamtx and ffmpeg processes |
+| `execution/streaming/mediamtx.yml` | mediamtx configuration (RTSP/HLS/WebRTC bound to Tailscale IP) |
 | `execution/home_start.py` | Move robot home → pre-pose → start pose |
 | `execution/start_pose.py` | Move robot directly to start pose |
 | `execution/go_home.py` | Return robot to home configuration |

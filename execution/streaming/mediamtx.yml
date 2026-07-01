@@ -1,0 +1,16 @@
+###############################################
+# General settings
+logLevel: info
+logDestinations: [stdout]
+
+rtspAddress: 100.110.244.54:8554
+rtmpAddress: 100.110.244.54:1935
+hlsAddress: 100.110.244.54:8888
+webrtcAddress: 100.110.244.54:8889
+srtAddress: 100.110.244.54:8890
+
+###############################################
+# Path settings
+paths:
+  cam:
+    source: publisher
