@@ -90,9 +90,9 @@ V_real = 0.7
 # moves. Kept slow so the tool eases onto the cone instead of knocking it away.
 # Tune V_approach_real down if the cone still shifts on contact.
 A_approach_sim = 2.5
-A_approach_real = 0.02
+A_approach_real = 0.2
 V_approach_sim = 1
-V_approach_real = 0.04
+V_approach_real = 0.1
 
 # Default orientation used when hovering above the cone apex.
 TOOL_TIP_OFFSET = np.array([0.0, 0.0, 0.086])

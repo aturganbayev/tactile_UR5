@@ -38,7 +38,7 @@ def main():
         HOST = REAL_HOST
         A, V = A_real, V_real
         A_app, V_app = A_approach_real, V_approach_real
-        SETTLE = 0.5   # let the arm and force reading settle before the next move
+        SETTLE = 1   # let the arm and force reading settle before the next move
     else:
         print("Invalid mode. Exiting.")
         return
