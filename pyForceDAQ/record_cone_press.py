@@ -83,9 +83,11 @@ MIN_PRESS_DURATION_S = 0.05  # ignore shorter blips as noise
 PRESS_OFF_DEBOUNCE_S = 0.5
 # After a press ends, ignore new presses for this long. As the robot retracts
 # it rebounds slightly, which can re-cross PRESS_ON and register a phantom
-# second press; real presses are several seconds apart (move + settle between
-# touch points), so this window removes rebounds without dropping real presses.
-PRESS_REFRACTORY_S = 4.0
+# second press; the rebound happens within ~1 s of press end. Keep this BELOW
+# the shortest real press-to-press gap (~2.6 s at the current approach speeds):
+# a longer window swallows weak presses outright and clips the impact peak off
+# presses that start inside it.
+PRESS_REFRACTORY_S = 1.5
 
 # Logging loop rate (the UR stream is ~125 Hz)
 LOOP_HZ = 125
