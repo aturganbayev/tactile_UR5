@@ -105,10 +105,10 @@ LOOP_HZ = 125
 # the page's fetch() of the JSON isn't blocked by browser same-origin rules.
 LIVE_PLOT = True
 LIVE_PLOT_PORT = 8765              # local HTTP server port (first free at/after this)
-LIVE_PLOT_REFRESH_S = 0.3          # render + browser poll interval
+LIVE_PLOT_REFRESH_S = 0.5          # render + browser poll interval
 LIVE_PLOT_DECIMATE = 5             # keep 1 of every N trajectory samples in the view
 LIVE_PLOT_MAX_POINTS = 3000        # rolling window of recent trajectory points shown
-LIVE_PLOT_SURFACE_MAX_POINTS = 1500  # cone surface points shown (it's WebGL - more = slower GPU)
+LIVE_PLOT_SURFACE_MAX_POINTS = 800  # cone surface points shown (it's WebGL - more = slower GPU)
 # Auto-open a browser tab on THIS machine when recording starts. Defaults to
 # off: this is normally run on a DAQ PC, and WebGL (which Plotly's 3D plots
 # need) often has no real GPU acceleration there - Chrome will visibly stall
@@ -278,13 +278,16 @@ def _load_surface_points():
             [float(r["z"]) for r in rows])
 
 
-def _guess_lan_ip():
-    """Best-effort outbound-facing IP, for printing a LAN URL to the live
-    plot. The UDP "connect" here sends no packets - it just asks the OS
-    which local interface would be used to reach that address."""
+def _guess_lan_ip(target="8.8.8.8"):
+    """Best-effort IP of the local interface used to reach `target`, for
+    printing a live-plot URL. The UDP "connect" here sends no packets - it
+    just asks the OS which local interface would be used for that route.
+    On a multi-NIC machine different targets can map to different
+    interfaces, so probe toward the machine that will actually view the
+    page (or the robot, which shares its subnet with the workstation)."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        s.connect(("8.8.8.8", 80))
+        s.connect((target, 80))
         return s.getsockname()[0]
     except OSError:
         return None
@@ -330,10 +333,25 @@ _LIVE_PLOT_HTML = """<!DOCTYPE html>
 <div id="plot" style="width:100vw;height:100vh;"></div>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script>
+// Two rules keep rotation smooth:
+//  * never call Plotly.react() while the mouse button is down - a re-render
+//    mid-drag stalls the camera and makes rotation feel laggy;
+//  * skip the re-render entirely when the fetched JSON hasn't changed, so an
+//    idle plot costs nothing between data updates.
+var dragging = false;
+var lastBody = null;
+document.getElementById("plot").addEventListener("mousedown", function () { dragging = true; });
+window.addEventListener("mouseup", function () { dragging = false; });
 function refresh() {
+  if (dragging) return;
   fetch("live_view_data.json?_=" + Date.now())
-    .then(r => r.json())
-    .then(fig => Plotly.react("plot", fig.data, fig.layout))
+    .then(r => r.text())
+    .then(body => {
+      if (dragging || body === lastBody) return;
+      lastBody = body;
+      var fig = JSON.parse(body);
+      Plotly.react("plot", fig.data, fig.layout);
+    })
     .catch(() => {});
 }
 refresh();
@@ -357,11 +375,13 @@ class LiveHtmlPlot:
     a slow render just falls behind; it can never block or slow down the
     recording loop."""
 
-    def __init__(self, out_dir, html_name="live_view.html", data_name="live_view_data.json"):
+    def __init__(self, out_dir, html_name="live_view.html", data_name="live_view_data.json",
+                 robot_host=None):
         import plotly.graph_objects as go
         from plotly.utils import PlotlyJSONEncoder
         self._go = go
         self._json_encoder = PlotlyJSONEncoder
+        self._robot_host = robot_host   # to pick the NIC the workstation shares
         self.out_dir = out_dir
         self.html_path = os.path.join(out_dir, html_name)
         self.data_path = os.path.join(out_dir, data_name)
@@ -410,7 +430,8 @@ class LiveHtmlPlot:
         return port
 
     def _announce(self):
-        local_url = f"http://localhost:{self.port}/{os.path.basename(self.html_path)}"
+        page = os.path.basename(self.html_path)
+        local_url = f"http://localhost:{self.port}/{page}"
         have_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
         if have_display and LIVE_PLOT_AUTO_OPEN:
             import webbrowser
@@ -419,15 +440,24 @@ class LiveHtmlPlot:
             except Exception as e:
                 print(f"  [warn] could not auto-open live plot ({e}); open it manually:")
                 print(f"    {local_url}")
-        else:
-            if not have_display:
-                print("  No local display detected - not auto-opening a browser.")
-            print(f"  Live plot (on this machine): {local_url}")
 
-        lan_ip = _guess_lan_ip()
-        if lan_ip:
-            print("  Viewing from another machine on the same network? Open:")
-            print(f"    http://{lan_ip}:{self.port}/{os.path.basename(self.html_path)}")
+        # A localhost URL only works in a browser ON this machine, and the
+        # default-route interface (toward 8.8.8.8) can be a different NIC than
+        # the network the viewing machine is on. Probe toward the robot first -
+        # the workstation shares its subnet - then the default route, and print
+        # every distinct address so at least one URL is reachable.
+        ips = []
+        for target in (self._robot_host, "8.8.8.8"):
+            ip = _guess_lan_ip(target) if target else None
+            if ip and not ip.startswith("127.") and ip not in ips:
+                ips.append(ip)
+        if ips:
+            print("  Live plot - open from any machine on the same network:")
+            for ip in ips:
+                print(f"    http://{ip}:{self.port}/{page}")
+            print(f"  (on this machine itself: {local_url})")
+        else:
+            print(f"  Live plot (this machine only): {local_url}")
 
     def add_sample(self, tip_xyz):
         self._sample_count += 1
@@ -447,17 +477,20 @@ class LiveHtmlPlot:
         go = self._go
         traj, presses = self._snapshot()
         traces = []
+        # Explicit symbol="circle": WebGL otherwise renders the tiny default
+        # markers as squares. Kept small so the red press diamonds stand out.
         if self._surface is not None:
             traces.append(go.Scatter3d(
                 x=self._surface[0], y=self._surface[1], z=self._surface[2],
-                mode="markers", marker=dict(size=3, color="dimgray", opacity=0.85),
+                mode="markers",
+                marker=dict(size=2, color="dimgray", opacity=0.5, symbol="circle"),
                 name="Cone surface", hoverinfo="skip",
             ))
         if traj:
             xs, ys, zs = zip(*traj)
             traces.append(go.Scatter3d(
                 x=xs, y=ys, z=zs, mode="markers",
-                marker=dict(size=2, color="black", opacity=0.6),
+                marker=dict(size=1.5, color="black", opacity=0.6, symbol="circle"),
                 name="TCP path",
             ))
         if presses:
@@ -589,7 +622,7 @@ def main():
     live_plot = None
     if LIVE_PLOT:
         try:
-            live_plot = LiveHtmlPlot(out_dir)
+            live_plot = LiveHtmlPlot(out_dir, robot_host=host)
         except Exception as e:
             print(f"  [warn] live plot disabled ({e})")
 

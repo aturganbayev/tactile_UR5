@@ -88,6 +88,7 @@ def main():
     seed = q_start          # chain the IK seed within a strip for a smooth path
     last_approach = None     # most recent retract pose, lifted before returning
     n_unreached = 0
+    point_in_strip = 0       # 1-based point number within the current strip
     for i, (_, row) in enumerate(poses_df.iterrows()):
         approach = [row["approach_x"], row["approach_y"], row["approach_z"],
                     row["approach_rx"], row["approach_ry"], row["approach_rz"]]
@@ -102,17 +103,26 @@ def main():
         if prev_strip is not None and strip != prev_strip:
             return_to_start(last_approach)
             seed = q_start
+        if strip != prev_strip:
+            point_in_strip = 0
         prev_strip = strip
+        # Count the point even if it turns out unreachable, so point numbers
+        # always identify the same generated location within a strip.
+        point_in_strip += 1
 
         # Offline IK for the approach pose, seeded from the previous solution.
         q, ok = ur5_ik_near(approach, seed)
         if not ok:
             n_unreached += 1
-            print(f"  [warn] pose {i} (strip {strip}) unreachable - skipping")
+            print(f"  [warn] pose {i + 1} (strip {strip + 1} point {point_in_strip}) "
+                  "unreachable - skipping")
             continue
         seed = q
 
-        ur_script_lines.append(f'  textmsg("pose {i} strip {strip}")')
+        # 1-based pose AND strip numbers, matching the press numbering in
+        # pyForceDAQ/record_cone_press.py (the CSV strip column stays 0-based).
+        ur_script_lines.append(
+            f'  textmsg("pose {i + 1} strip {strip + 1} point {point_in_strip}")')
         # Transit in joint space to the precomputed approach configuration.
         ur_script_lines.append(f"  movej([{pose_str(q)}], a={A}, v={V})")
         ur_script_lines.append(f"  sleep({SETTLE})")

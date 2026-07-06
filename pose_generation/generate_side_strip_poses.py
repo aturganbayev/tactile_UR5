@@ -185,7 +185,7 @@ def main():
                      label=f"Strip {strip_idx}  ({strip_angle_raw:.0f}°)")
         ax3d.quiver(strip_df["x"], strip_df["y"], strip_df["z"],
                     strip_df["nx"], strip_df["ny"], strip_df["nz"],
-                    length=0.015, color=colors[strip_idx])
+                    length=0.007, linewidth=0.8, color=colors[strip_idx])
     ax3d.set_xlabel("X (m)"); ax3d.set_ylabel("Y (m)"); ax3d.set_zlabel("Z (m)")
     # Equal aspect so the cone shows true proportions (matplotlib's 3D default
     # stretches each axis to fill a cube).
