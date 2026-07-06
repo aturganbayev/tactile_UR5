@@ -71,8 +71,11 @@ SENSOR_RATE = 500
 # Using the magnitude rather than signed Fz catches contact even where the
 # local surface normal isn't aligned with the sensor's Z axis (e.g. near the
 # cone's embedded bulge), which can load mostly Fx/Fy with Fz negative.
-PRESS_ON_N = 0.5           # Fmag rising above this starts a press
-PRESS_OFF_N = 0.3          # Fmag falling below this ends the press
+# Thresholds sit well above the sensor noise floor (~0.03 N) but low enough to
+# catch shallow contacts: the apex press can peak at only ~0.4 N when the
+# calibrated apex sits a couple of mm high, and 0.5 N silently dropped it.
+PRESS_ON_N = 0.3           # Fmag rising above this starts a press
+PRESS_OFF_N = 0.15         # Fmag falling below this ends the press
 MIN_PRESS_DURATION_S = 0.05  # ignore shorter blips as noise
 # Some cones embed a small hard ball (tumor phantom) under the outer silicone
 # shell. Pressing through the soft shell onto the ball gives a bimodal force
