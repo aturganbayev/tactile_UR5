@@ -62,6 +62,12 @@ MATCH_TOL_MM = 6.0
 
 HOLD_BAND_MM = 0.5     # samples within this of max depth count as the hold
 
+# Same speed gate as record_cone_press.py: a real press contains the ~1 s
+# stationary hold, while transit grazes / silicone-adhesion blips happen
+# entirely on the move. An episode with no in-contact sample slower than this
+# is discarded.
+HOLD_SPEED_MS = 0.01
+
 
 def find_trajectory(directory):
     hits = sorted(glob.glob(os.path.join(directory, "*_trajectory.csv")))
@@ -86,6 +92,7 @@ def load_run(directory):
         "t": df["t"].to_numpy(),
         "tip": tips,
         "fmag": df["Fmag"].to_numpy(),
+        "speed": df["speed"].to_numpy(),
     }
 
 
@@ -118,6 +125,8 @@ def press_features(run, i0, i1):
     t = run["t"][i0:i1 + 1]
     if t[-1] - t[0] < MIN_DUR_S or f.max() < MIN_PEAK_N:
         return None
+    if not (run["speed"][i0:i1 + 1] <= HOLD_SPEED_MS).any():
+        return None   # tool never stationary while in contact: transit blip
 
     # Indentation axis from the actual motion: onset -> peak-force position.
     # Signed projection onto it makes loading depth grow and retract shrink.
@@ -160,7 +169,8 @@ def press_features(run, i0, i1):
         "k_full": k_full,
         "k_late": k_late,
         "relax": relax,
-        "curve": (load_d, load_f),   # for the sample-curve figure
+        "curve": (load_d, load_f),      # for the sample-curve figure
+        "load_tip": tip[:i_dmax + 1],   # tip positions along the loading phase
     }
 
 
@@ -208,19 +218,16 @@ def self_residual(h, k, row_tol_mm=1.5):
     return resid
 
 
-def main():
-    if len(sys.argv) < 2:
-        sys.exit(__doc__)
-    phantom_dir = sys.argv[1]
-    ref_dir = sys.argv[2] if len(sys.argv) > 2 else None
-
-    print("Loading runs ...")
-    phantom = load_run(phantom_dir)
-    presses_p = analyze_run(phantom)
+def make_figures(phantom, presses_p, ref=None, presses_r=None,
+                 out_dir=None, tag=None):
+    """Render the sample-curve and stiffness-map figures for one phantom run,
+    optionally compared against a reference (empty-phantom) run. Runs come
+    from load_run() + analyze_run(). Returns the saved figure paths."""
+    if out_dir is None:
+        out_dir = paths.FIGURES
     runs = [(phantom, presses_p)]
+    ref_dir = ref is not None
     if ref_dir:
-        ref = load_run(ref_dir)
-        presses_r = analyze_run(ref)
         runs.append((ref, presses_r))
 
     # One shared axis center so azimuths line up between runs (the calibration
@@ -228,8 +235,9 @@ def main():
     all_tips = np.array([p["tip"] for _, pr in runs for p in pr])
     center_xy = all_tips[:, :2].mean(axis=0)
 
-    os.makedirs(paths.FIGURES, exist_ok=True)
-    tag = phantom["name"] + (f"_vs_{ref['name']}" if ref_dir else "")
+    os.makedirs(out_dir, exist_ok=True)
+    if tag is None:
+        tag = phantom["name"] + (f"_vs_{ref['name']}" if ref_dir else "")
 
     # ---------------- sample loading curves ---------------- #
     fig, axes = plt.subplots(1, len(runs), figsize=(7 * len(runs), 5), squeeze=False)
@@ -246,8 +254,9 @@ def main():
         ax.legend(fontsize=7)
         ax.grid(alpha=0.3)
     fig.tight_layout()
-    curves_png = os.path.join(paths.FIGURES, f"stiffness_curves_{tag}.png")
+    curves_png = os.path.join(out_dir, f"{tag}_stiffness_curves.png")
     fig.savefig(curves_png, dpi=200)
+    plt.close(fig)
     print(f"Saved {curves_png}")
 
     # ---------------- stiffness maps + residuals ---------------- #
@@ -319,9 +328,28 @@ def main():
 
     fig.suptitle("Press stiffness over the cone surface", y=0.995)
     fig.tight_layout()
-    map_png = os.path.join(paths.FIGURES, f"stiffness_map_{tag}.png")
+    map_png = os.path.join(out_dir, f"{tag}_stiffness_map.png")
     fig.savefig(map_png, dpi=200)
+    plt.close(fig)
     print(f"Saved {map_png}")
+
+    return [curves_png, map_png]
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit(__doc__)
+    phantom_dir = sys.argv[1]
+    ref_dir = sys.argv[2] if len(sys.argv) > 2 else None
+
+    print("Loading runs ...")
+    phantom = load_run(phantom_dir)
+    presses_p = analyze_run(phantom)
+    ref = presses_r = None
+    if ref_dir:
+        ref = load_run(ref_dir)
+        presses_r = analyze_run(ref)
+    make_figures(phantom, presses_p, ref, presses_r)
 
 
 if __name__ == "__main__":

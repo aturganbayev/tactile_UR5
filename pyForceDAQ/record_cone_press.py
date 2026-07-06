@@ -91,6 +91,13 @@ PRESS_OFF_DEBOUNCE_S = 0.5
 # a longer window swallows weak presses outright and clips the impact peak off
 # presses that start inside it.
 PRESS_REFRACTORY_S = 1.5
+# A real press always contains the ~1 s hold at the pressed position, where the
+# TCP is essentially stationary while the force is still applied. Transit
+# contacts - grazing the cone or the tacky silicone sticking to the tip during
+# the between-strip swing - happen entirely on the move (observed at
+# >= 0.023 m/s), so a press is only recorded if at least one in-contact sample
+# was slower than this (real holds sit at ~0.003 m/s).
+PRESS_HOLD_SPEED_MS = 0.01
 
 # Logging loop rate (the UR stream is ~125 Hz)
 LOOP_HZ = 125
@@ -638,6 +645,7 @@ def main():
     press_start_t = 0.0
     last_press_end_t = 0.0   # for the refractory window
     off_since = None         # when Fz first dropped below PRESS_OFF_N (debounce)
+    saw_hold = False         # press contained a near-stationary sample (real hold)
 
     try:
         next_t = time.perf_counter()
@@ -669,9 +677,12 @@ def main():
                     in_press = True
                     press_start_t = now
                     off_since = None
+                    saw_hold = pose is not None and speed <= PRESS_HOLD_SPEED_MS
                     peak = {"fz": fz, "f": (fx, fy, fz), "fmag": fmag,
                             "pose": pose, "t": now}
             else:
+                if pose is not None and speed <= PRESS_HOLD_SPEED_MS:
+                    saw_hold = True
                 if fmag > peak["fmag"]:
                     peak = {"fz": fz, "f": (fx, fy, fz), "fmag": fmag,
                             "pose": pose, "t": now}
@@ -679,7 +690,13 @@ def main():
                     if off_since is None:
                         off_since = now
                     elif (now - off_since) >= PRESS_OFF_DEBOUNCE_S:
-                        if (now - press_start_t) >= MIN_PRESS_DURATION_S:
+                        if (now - press_start_t) >= MIN_PRESS_DURATION_S and not saw_hold:
+                            # tool never went stationary while in contact ->
+                            # transit graze / adhesion blip, not a press
+                            print(f"  [info] ignored moving contact "
+                                  f"(peak |F| = {peak['fmag']:.2f} N, "
+                                  f"tool never stationary)")
+                        elif (now - press_start_t) >= MIN_PRESS_DURATION_S:
                             press_count += 1
                             p = peak["pose"] if peak["pose"] is not None else [float("nan")] * 6
                             press_w.writerow([press_count, f"{peak['t']:.6f}",
