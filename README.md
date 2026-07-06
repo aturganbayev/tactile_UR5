@@ -241,7 +241,7 @@ Motion strategy (`execution/run_side_strip_poses.py`):
 - **Inverse kinematics is solved in software** (`ur5_ik_near` in `pose_utils.py`, validated UR5 FK/IK) and transits command joint targets directly with **`movej([j1..j6])`**. The controller's `get_inverse_kin` is *not* used: it does a single Newton solve from one fixed seed, which cannot converge for poses spread all the way around the cone, leaving the arm reorienting without reaching the points. The seed is **chained from the previous solved pose within a strip** (smooth path) and **reset to the start config between strips** (so the base/wrist don't wind up as the strips wrap 360°). Unreachable poses are flagged and skipped.
 - **Press and retract use `movel`** — short, controlled linear motion along the surface normal, at the slow contact speed (`*_approach_*` in `pose_utils.py`).
 - **Between strips the tool lifts straight up** (`SAFE_LIFT_M` = 60 mm, base +Z) *before* the joint-space swing back to the start pose, so the `movej` arc cannot graze the cone (which otherwise registers a false press).
-- **Settle pauses are mode-dependent** (`SETTLE`): 0.1 s in sim, 0.5 s on real.
+- **Settle pauses are mode-dependent** (`SETTLE`): 0.1 s in sim, 1 s on real.
 - Each transit logs the pose index and strip via `textmsg` — visible in the PolyScope Log tab to identify the failing pose after a protective stop.
 
 > **Note on speeds:** because transits are now joint-space `movej`, `V_sim`/`A_sim`/`V_real`/`A_real` are joint speed/accel (rad/s, rad/s²); the `*_approach_*` values used by the `movel` press are linear (m/s, m/s²). Sim is pushed near the UR5 joint limit since there's no hardware to protect.
@@ -317,7 +317,7 @@ The page's own auto-refresh picks up new renders straight from the mount, no syn
 | `<ts>_trajectory.csv` | Continuous `t, x,y,z,rx,ry,rz, speed, Fx,Fy,Fz, Fmag` (~125 Hz) |
 | `<ts>_presses.csv` | One row per detected press: peak `Fz` / `\|F\|` and the TCP pose at the peak |
 
-Press detection thresholds on **`Fmag` = |F|** (not signed `Fz`) — a touch near the cone's embedded bulge can load mostly `Fx`/`Fy` with `Fz` negative, missing a `Fz`-only threshold even though `|F|` is well above it. A press starts once `Fmag` rises above `PRESS_ON_N` (`0.5 N`) and is only considered over once `Fmag` has stayed below `PRESS_OFF_N` (`0.3 N`) for `PRESS_OFF_DEBOUNCE_S` (`0.5 s`) — long enough to ride out the momentary dip some cones show between the soft outer shell and an embedded hard "tumor" ball, which would otherwise look like two separate presses. After a press ends, new presses are ignored for `PRESS_REFRACTORY_S` (`4.0 s`) to filter out the rebound as the tool retracts. Logged at `LOOP_HZ` = 125 Hz.
+Press detection thresholds on **`Fmag` = |F|** (not signed `Fz`) — a touch near the cone's embedded bulge can load mostly `Fx`/`Fy` with `Fz` negative, missing a `Fz`-only threshold even though `|F|` is well above it. A press starts once `Fmag` rises above `PRESS_ON_N` (`0.5 N`) and is only considered over once `Fmag` has stayed below `PRESS_OFF_N` (`0.3 N`) for `PRESS_OFF_DEBOUNCE_S` (`0.5 s`) — long enough to ride out the momentary dip some cones show between the soft outer shell and an embedded hard "tumor" ball, which would otherwise look like two separate presses. After a press ends, new presses are ignored for `PRESS_REFRACTORY_S` (`1.5 s`) to filter out the rebound as the tool retracts. This window must stay **below the shortest real press-to-press gap** (~2.6 s at the current approach speeds): a longer window (it used to be 4 s) swallows weak presses outright and clips the impact peak off presses that start inside it. Logged at `LOOP_HZ` = 125 Hz.
 
 **DAQ sample rate:** the Nano17 runs in HW-timed single-point mode, so the host must service the device every sample; too high a rate overruns the DAQ buffer (NI error `-200714`). `SENSOR_RATE` (default `500` Hz) keeps comfortable headroom over the 125 Hz logging loop. Lower it (e.g. `250`) if the overrun recurs on a loaded machine.
 
@@ -386,6 +386,29 @@ The stream is only reachable from devices on the same Tailscale network. The cam
 
 ---
 
+### TCP pose utilities (real robot)
+
+Read the current TCP pose, or jog the robot to a given pose. Both use the same
+format — 6 space-separated values, `x y z` in **mm** and rotation vector
+`rx ry rz` in **rad** (base frame) — so a printed pose can be pasted straight
+back as a move target.
+
+```bash
+# Print the current TCP pose as a single line, e.g.
+#   2.490 -513.500 211.850 -2.200000 2.200000 0.000000
+python execution/print_tcp_pose.py
+
+# Move the TCP to a pose (prompts for it, or pass as arguments).
+# Confirms before sending, then does a linear movel from the current pose
+# at the slow approach speed.
+python execution/move_to_pose.py [x y z rx ry rz]
+```
+
+> `move_to_pose.py` moves **linearly** from wherever the robot is — the path
+> doesn't know about the cone, so don't command a pose on its far side.
+
+---
+
 ### Emergency stop
 
 Immediately decelerates and stops the robot (does not require mode selection).
@@ -447,6 +470,8 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `execution/home_start.py` | Move robot home → pre-pose → start pose |
 | `execution/start_pose.py` | Move robot directly to start pose |
 | `execution/go_home.py` | Return robot to home configuration |
+| `execution/print_tcp_pose.py` | Print the real robot's current TCP pose (one line: `x y z` mm + `rx ry rz` rad) |
+| `execution/move_to_pose.py` | Move the real robot's TCP to an input pose (same format; confirms, then slow linear move) |
 | `execution/stop_robot.py` | Emergency stop |
 | `execution/shutdown_robot.py` | Return home, then power down the controller (`real` requires confirmation) |
 | `execution/watch_robot_messages.py` | Live-decode the Robot Message stream (port 30001) — mirrors the pendant's Log tab in real time |
@@ -481,15 +506,15 @@ Defined in `pose_utils.py` and the generator scripts:
 | Sim transit speed / accel (joint) | `V_sim = 3` rad/s, `A_sim = 8` rad/s² | `pose_utils.py` |
 | Real transit speed / accel (joint) | `V_real = 0.7` rad/s, `A_real = 0.35` rad/s² | `pose_utils.py` |
 | Sim approach (contact) speed / accel | `V_approach_sim = 1` m/s, `A_approach_sim = 2.5` m/s² | `pose_utils.py` |
-| Real approach (contact) speed / accel | `V_approach_real = 0.04` m/s, `A_approach_real = 0.02` m/s² | `pose_utils.py` |
+| Real approach (contact) speed / accel | `V_approach_real = 0.1` m/s, `A_approach_real = 0.2` m/s² | `pose_utils.py` |
 | Lift before return to start | `SAFE_LIFT_M = 0.06` m (base +Z) | `execution/run_side_strip_poses.py` |
-| Settle pause (sim / real) | `0.1` s / `0.5` s | `execution/run_side_strip_poses.py` |
+| Settle pause (sim / real) | `0.1` s / `1` s | `execution/run_side_strip_poses.py` |
 | Number of strips | `NUM_STRIPS` — tunable, evenly around the cone | `pose_generation/generate_side_strip_poses.py` |
 | Points per strip | `NUM_POINTS` — tunable, apex → lower bound | `pose_generation/generate_side_strip_poses.py` |
 | Side strip lower bound | `MIN_HEIGHT_FRACTION` — tunable, fraction from base | `pose_generation/generate_side_strip_poses.py` |
 | Press detect threshold | `0.5` N on / `0.3` N off, on `Fmag` | `pyForceDAQ/record_cone_press.py` |
 | Press-off debounce | `PRESS_OFF_DEBOUNCE_S = 0.5` s | `pyForceDAQ/record_cone_press.py` |
-| Press refractory window | `PRESS_REFRACTORY_S = 4.0` s | `pyForceDAQ/record_cone_press.py` |
+| Press refractory window | `PRESS_REFRACTORY_S = 1.5` s (keep below the shortest press-to-press gap) | `pyForceDAQ/record_cone_press.py` |
 | DAQ sample rate | `SENSOR_RATE = 500` Hz | `pyForceDAQ/record_cone_press.py` |
 | Force log rate | `125` Hz (`LOOP_HZ`) | `pyForceDAQ/record_cone_press.py` |
 | Force sensor | `FT12876` (Nano17) | `pyForceDAQ/record_cone_press.py` |
