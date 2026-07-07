@@ -17,7 +17,12 @@ sit a little outside the true boundary and the fitted radius is slightly
 overestimated.
 
 Usage:
-    python3 ball_point_cloud.py PHANTOM_DIR REFERENCE_DIR
+    python3 ball_point_cloud.py PHANTOM_DIR [REFERENCE_DIR]
+
+REFERENCE_DIR defaults to the "empty" folder next to PHANTOM_DIR (the data
+directory keeps the empty-phantom run there). Works from any working
+directory - paths are taken from the arguments, and outputs go into
+PHANTOM_DIR.
 
 Outputs (into PHANTOM_DIR, named like the batch plots):
     <folder>_ball_cloud.png    - static 3D view
@@ -224,9 +229,19 @@ def locate_ball(phantom, presses_p, ref, presses_r, out_dir, tag=None):
 
 
 def main():
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         sys.exit(__doc__)
-    phantom_dir, ref_dir = sys.argv[1], sys.argv[2]
+    phantom_dir = sys.argv[1]
+    if len(sys.argv) > 2:
+        ref_dir = sys.argv[2]
+    else:
+        # default: the empty-phantom run stored next to the phantom folder
+        ref_dir = os.path.join(os.path.dirname(os.path.normpath(phantom_dir)),
+                               "empty")
+        if not os.path.isdir(ref_dir):
+            sys.exit(f"No reference folder at {ref_dir} - pass REFERENCE_DIR "
+                     "explicitly.")
+        print(f"Using reference: {ref_dir}")
     tag = os.path.basename(os.path.normpath(phantom_dir)).replace(" ", "_")
 
     print("Loading runs ...")
