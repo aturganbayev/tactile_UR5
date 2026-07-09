@@ -11,10 +11,11 @@ drives the robot to press the cone. While it runs it:
   * records the PEAK force of each press together with the TCP pose at that
     instant.
 
-Outputs (in ./cone_data/):
-  <name>_trajectory.csv  - t, x,y,z,rx,ry,rz, speed, Fx,Fy,Fz, |F|   (~LOOP_HZ)
-  <name>_presses.csv     - press#, t_peak, peak_Fz, peak_|F|, Fx,Fy,Fz,
-                           and TCP pose x,y,z,rx,ry,rz at the peak
+Outputs (in ./cone_data/<egg name>/, or ./cone_data/ if the egg name is
+'none' - the name is prompted at startup):
+  <ts>_trajectory.csv  - t, x,y,z,rx,ry,rz, speed, Fx,Fy,Fz, |F|   (~LOOP_HZ)
+  <ts>_presses.csv     - press#, t_peak, peak_Fz, peak_|F|, Fx,Fy,Fz,
+                         and TCP pose x,y,z,rx,ry,rz at the peak
 
 Stop with Ctrl-C.
 
@@ -570,11 +571,25 @@ def select_host():
         print("Invalid input. Please type 'sim' or 'real'.")
 
 
+def select_out_dir(base_dir):
+    """Ask for the egg (phantom) name and return the recording folder.
+
+    The name becomes a subfolder of cone_data/, matching the per-phantom
+    layout the analysis batch scripts expect (e.g. red_mid/). Typing 'none'
+    (or nothing) records straight into cone_data/ as before.
+    """
+    name = input("Egg name (subfolder for this recording, 'none' for cone_data/): ").strip()
+    out_dir = os.path.join(base_dir, "cone_data")
+    if name and name.lower() != "none":
+        out_dir = os.path.join(out_dir, name.replace(" ", "_"))
+    return out_dir
+
+
 def main():
     host = select_host()
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    out_dir = os.path.join(base_dir, "cone_data")
+    out_dir = select_out_dir(base_dir)
     os.makedirs(out_dir, exist_ok=True)
     stamp = strftime("%Y-%m-%d_%H-%M-%S", localtime())
     traj_path = os.path.join(out_dir, f"{stamp}_trajectory.csv")
