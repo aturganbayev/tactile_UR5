@@ -23,6 +23,7 @@ figures/*_press_force_on_cone.png
 # the recordings themselves are already covered by *.csv above)
 ur5_tactile_data/*/*.png
 ur5_tactile_data/*/*.html
+ur5_tactile_data/*/*.json
 
 # Robot terminal logs
 execution/robot_logs/

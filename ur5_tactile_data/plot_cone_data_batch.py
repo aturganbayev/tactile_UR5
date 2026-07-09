@@ -19,7 +19,10 @@ max and average press force. Nothing is shown on screen - everything is
 saved to disk; open the .html files in a browser for interactive 3D viewing.
 
 New subfolders dropped in here later are picked up automatically the next
-time this script is run - nothing needs to be added by hand.
+time this script is run - nothing needs to be added by hand. Recordings
+whose plots already exist (and are newer than the CSVs) are skipped, so
+re-running the script only plots what's new; delete a plot file or update
+the recording to force a replot.
 
 Usage:
   python3 plot_cone_data_batch.py
@@ -57,6 +60,27 @@ def find_stamps(folder):
         if os.path.exists(traj_path):
             stamps.append(stamp)
     return stamps
+
+
+def outputs_up_to_date(folder, stamp, name):
+    """True if every plot for this recording exists and is newer than its
+    CSVs - then there is nothing to replot. The press-based plots are only
+    expected when the recording actually has presses."""
+    press_path = os.path.join(folder, f"{stamp}_presses.csv")
+    traj_path = os.path.join(folder, f"{stamp}_trajectory.csv")
+    with open(press_path) as f:
+        has_presses = sum(1 for _ in f) > 1   # more than the header line
+    outputs = [f"{name}_force_vs_time.png", f"{name}_speed_vs_time.png",
+               f"{name}_trajectory_3d.png", f"{name}_trajectory_3d.html"]
+    if has_presses:
+        outputs += [f"{name}_peak_force_per_press.png",
+                    f"{name}_press_force_on_cone.png",
+                    f"{name}_press_force_on_cone.html"]
+    src_mtime = max(os.path.getmtime(press_path), os.path.getmtime(traj_path))
+    return all(
+        os.path.exists(p) and os.path.getmtime(p) >= src_mtime
+        for p in (os.path.join(folder, out) for out in outputs)
+    )
 
 
 def plot_recording(folder, stamp, name):
@@ -130,6 +154,9 @@ def main():
         folder_name = os.path.basename(folder).replace(" ", "_")
         for i, stamp in enumerate(stamps):
             name = folder_name if len(stamps) == 1 else f"{folder_name}_{i + 1}"
+            if outputs_up_to_date(folder, stamp, name):
+                print(f"{name}: plots up to date - skipping.")
+                continue
             plot_recording(folder, stamp, name)
 
     print("Done.")
