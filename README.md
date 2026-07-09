@@ -1,10 +1,9 @@
 # Tactile UR5
 
-Automated tactile exploration of silicone breast phantoms ("eggs") using a UR5 robot arm, aiming to **locate an embedded hard "tumor" ball from touch alone**. The pipeline extracts surface geometry from a CAD model, calibrates it to the robot's coordinate frame via ICP, generates approach/press poses over the surface, executes them on the physical (or simulated) robot over a raw URScript TCP socket, records the contact force (ATI Nano17) synchronized with the TCP pose for each press, and analyzes the resulting force data to localize the embedded ball in 3D — without any prior knowledge of its size, depth, or position.
+Automated tactile exploration of silicone breast phantoms ("eggs") using a UR5 robot arm, aiming to **locate an embedded hard "tumor" ball from touch alone**. The pipeline extracts surface geometry from a CAD model, calibrates it to the robot's coordinate frame via ICP, generates approach/press poses over the surface, executes them on the physical (or simulated) robot over a raw URScript TCP socket, and records the contact force (ATI Nano17) synchronized with the TCP pose for each press.
 
 ```
-cone.STL → surface points → ICP calibration → touch poses → robot execution
-  → force+pose recording → stiffness/ball-localization analysis
+cone.STL → surface points → ICP calibration → touch poses → robot execution → force+pose recording
 ```
 
 ---
@@ -333,7 +332,7 @@ python pyForceDAQ/plot_cone_data.py [stamp]
 | `<stamp>_peak_force_per_press.png` | Peak `Fz`/`\|F\|` bar chart, one bar per press |
 | `<stamp>_press_force_on_cone.png` | Peak force at each press mapped onto the calibrated cone surface, top/next-24 marked with star/triangle markers |
 
-The same module also exposes `save_trajectory_3d_html` / `save_press_force_on_cone_html`, which render the equivalent interactive WebGL plots (Plotly) to standalone `.html` files. For batch use across a whole data folder, see [Per-egg data and analysis](#per-egg-data-and-analysis-ur5_tactile_data) below.
+The same module also exposes `save_trajectory_3d_html` / `save_press_force_on_cone_html`, which render the equivalent interactive WebGL plots (Plotly) to standalone `.html` files. For batch use across a whole data folder, see [Per-egg data](#per-egg-data-ur5_tactile_data) below.
 
 ### Sync recordings from the DAQ PC
 
@@ -344,19 +343,17 @@ The same module also exposes `save_trajectory_3d_html` / `save_press_force_on_co
 ~/github_local/tactile_UR5/pyForceDAQ/sync_cone_data.sh --watch  # auto-copy every 10s
 ```
 
-Copy is the default (originals kept; safe to run while a session is recording). `--watch [SECS]` polls on an interval; `--move` deletes the source files after copying. It mirrors the DAQ PC's folder structure recursively, so a per-egg subfolder recorded via the name prompt lands as `pyForceDAQ/cone_data/<egg name>/`. The batch analysis scripts operate on `ur5_tactile_data/`, so **move or copy each synced egg folder from `pyForceDAQ/cone_data/` into `ur5_tactile_data/`** once it's synced, before running the analysis below.
+Copy is the default (originals kept; safe to run while a session is recording). `--watch [SECS]` polls on an interval; `--move` deletes the source files after copying. It mirrors the DAQ PC's folder structure recursively, so a per-egg subfolder recorded via the name prompt lands as `pyForceDAQ/cone_data/<egg name>/`. The batch plot script operates on `ur5_tactile_data/`, so **move or copy each synced egg folder from `pyForceDAQ/cone_data/` into `ur5_tactile_data/`** once it's synced, before running it below.
 
 ---
 
-## Per-egg data and analysis (`ur5_tactile_data/`)
+## Per-egg data (`ur5_tactile_data/`)
 
-Recordings, one subfolder per egg, live in `ur5_tactile_data/` in this repo (not `~/ur5_tactile_data` — that location is deprecated). `empty/` is the reference phantom: the same body with no ball inside, pressed over the identical pose grid. Every comparative analysis below is measured against it, so record `empty/` before analyzing any other egg.
+Recordings, one subfolder per egg, live in `ur5_tactile_data/` in this repo (not `~/ur5_tactile_data` — that location is deprecated). `empty/` is the reference phantom: the same body with no ball inside, pressed over the identical pose grid.
 
 ```
 ur5_tactile_data/
 ├── plot_cone_data_batch.py    # raw force/trajectory plots, per egg
-├── stiffness_map_batch.py     # stiffness maps vs empty/, per egg
-├── ball_cloud_batch.py        # 3D ball localization vs empty/, per egg
 ├── empty/                     # reference phantom (no ball)
 │   └── <ts>_trajectory.csv, <ts>_presses.csv
 ├── red_mid/
@@ -364,51 +361,7 @@ ur5_tactile_data/
 └── ...
 ```
 
-Each batch script walks every subfolder here, so a new egg folder (recorded, then synced/copied in as above) is picked up automatically — nothing needs to be registered by hand. All three write their outputs back into the egg's own subfolder, named `<egg>_<plot>.png`/`.html`.
-
-### Why not just peak force?
-
-The peak force recorded per press mixes two things that can't be told apart from a single number: how stiff the tissue is at that point, and how deep the press actually reached (which depends on calibration accuracy — a couple of mm of surface offset changes peak force far more than a soft-tissue-vs-tumor difference does). The analysis below instead works from the **full force-vs-indentation curve** of each press (recorded at 125 Hz through the whole loading phase), which is far more informative and much less sensitive to calibration error.
-
-### Stiffness maps
-
-```bash
-cd ur5_tactile_data && python3 stiffness_map_batch.py
-# or, for one egg directly:
-python3 pyForceDAQ/stiffness_map.py <egg_dir> [<reference_dir>]
-```
-
-For every press, fits a local stiffness (`dF/d(depth)`, N/mm) from the loading curve, then maps it over the egg's surface (azimuth × height) three ways:
-
-- **Absolute stiffness** per egg — mostly reflects the natural taper of the phantom (stiffer near the base).
-- **Self-baseline residual** — each press's stiffness compared to the median of its own height row, *within the same recording*. Immune to phantom-to-phantom body/dimension differences (no reference egg needed), but blind to a ball centered on the axis (perfectly axisymmetric residual cancels out).
-- **Press-matched differential vs `empty/`** — each press compared to the same pose on the reference egg. Catches an on-axis ball (shows up as a height-band ring) but is more sensitive to phantom body/dimension differences between the two recordings.
-
-Outputs: `<egg>_stiffness_curves.png` (sample loading curves) and `<egg>_stiffness_map.png` (the three map rows described above).
-
-### 3D ball localization
-
-```bash
-cd ur5_tactile_data && python3 ball_cloud_batch.py
-# or, for one egg directly (REFERENCE_DIR defaults to the "empty" sibling folder):
-python3 pyForceDAQ/ball_point_cloud.py <egg_dir> [<reference_dir>]
-```
-
-Every press is a probe along a known ray into the tissue. For each press, the point where the egg's loading curve starts to diverge from `empty`'s curve at the same location is where the tip first felt the ball — and the tip's measured 3D position at that depth is a point on (just outside) the ball's boundary. Collecting these divergence points across all presses that show clear ball influence gives a partial point cloud of the ball's outward-facing surface; a least-squares sphere fit turns it into a **center + radius estimate**. No prior knowledge of the ball's size, depth, or on/off-axis position is used anywhere in this — it's read entirely from the force data.
-
-The one systematic bias to keep in mind: the silicone shell compresses slightly ahead of the tip before true contact, so boundary points sit a little outside the real surface and the fitted radius is a few mm larger than the true one. Center position and relative comparisons between eggs are not affected by this bias.
-
-Outputs: `<egg>_ball_cloud.png` (static 3D view) and `<egg>_ball_cloud.html` (interactive, rotate in a browser).
-
-### Demo: `red_mid`
-
-Raw peak force per press mapped onto the calibrated surface, next to the localized ball fitted from the same recording:
-
-| Peak press force on the surface | Localized ball (fitted sphere + boundary points) |
-|---|---|
-| ![red_mid press force on cone](ur5_tactile_data/red_mid/red_mid_press_force_on_cone.png) | ![red_mid ball point cloud](ur5_tactile_data/red_mid/red_mid_ball_cloud.png) |
-
-The raw force map (left) only shows *that* one region pressed harder — it doesn't say why, and a naive read could mistake the pattern for the phantom's natural taper. The stiffness/ball-localization pipeline (right) resolves that ambiguity: 98 presses showed clear stiffness excess over the `empty` reference, and the fitted sphere lands on-axis at 88.5 mm height with radius 17.5 mm (fit RMS 2.3 mm) — recovered from force data alone, with no input about where the ball actually was.
+`plot_cone_data_batch.py` walks every subfolder here, so a new egg folder (recorded, then synced/copied in as above) is picked up automatically — nothing needs to be registered by hand. It writes its outputs back into the egg's own subfolder, named `<egg>_<plot>.png`/`.html`.
 
 ---
 
@@ -536,13 +489,9 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `execution/watch_robot_messages.py` | Live-decode the Robot Message stream (port 30001) — mirrors the pendant's Log tab in real time |
 | `pyForceDAQ/record_cone_press.py` | Record Nano17 force + UR5 TCP pose; auto-detect each press (with a speed gate against transit false-positives) and log its peak force with the pose at that instant; prompts for an egg name to record into a per-egg subfolder |
 | `pyForceDAQ/plot_cone_data.py` | Plot one recorded session: force/speed over time, 3D approach paths and peak-force-on-cone-surface (top presses by force highlighted); also exposes interactive Plotly HTML variants |
-| `pyForceDAQ/stiffness_map.py` | Fit per-press stiffness from loading curves and map it (absolute / self-residual / vs a reference egg) over the surface; importable by `ur5_tactile_data/stiffness_map_batch.py` |
-| `pyForceDAQ/ball_point_cloud.py` | Localize the embedded ball in 3D from where each egg's force curve diverges from the reference egg's; sphere-fits the boundary point cloud; importable by `ur5_tactile_data/ball_cloud_batch.py` |
 | `pyForceDAQ/sync_cone_data.sh` | Copy recordings from the remote DAQ PC (sshfs mount) into `pyForceDAQ/cone_data/` |
 | `pyForceDAQ/calibration/` | ATI sensor calibration files (`FT12876` = Nano17, `FT12877`) |
 | `ur5_tactile_data/plot_cone_data_batch.py` | Batch-run `plot_cone_data.py`'s plots over every egg folder here; skips recordings whose plots are already up to date |
-| `ur5_tactile_data/stiffness_map_batch.py` | Batch-run stiffness maps for every egg here against `empty/` |
-| `ur5_tactile_data/ball_cloud_batch.py` | Batch-run 3D ball localization for every egg here against `empty/` |
 | `data/surface_points.csv` | Raw STL surface points (mm, STL frame) |
 | `ur_calibration/surface_points_base.csv` | Surface points in robot base frame (m) |
 | `ur_calibration/physical_points.csv` | Recorded physical touch points from teach pendant |
@@ -589,5 +538,3 @@ Defined in `pose_utils.py` and the generator/analysis scripts:
 | Live plot re-render / poll interval | `LIVE_PLOT_REFRESH_S = 0.5` s | `pyForceDAQ/record_cone_press.py` |
 | Live plot trajectory decimation / window | `LIVE_PLOT_DECIMATE = 5`, `LIVE_PLOT_MAX_POINTS = 3000` | `pyForceDAQ/record_cone_press.py` |
 | Live plot cone surface point cap | `LIVE_PLOT_SURFACE_MAX_POINTS = 800` | `pyForceDAQ/record_cone_press.py` |
-| Ball-cloud min force excess | `MIN_EXCESS_N = 0.8` N — a press needs at least this much force excess over the reference to contribute a boundary point | `pyForceDAQ/ball_point_cloud.py` |
-| Ball-cloud onset fraction | `ONSET_FRACTION = 0.3` — boundary point taken where excess force first reaches this fraction of its final value | `pyForceDAQ/ball_point_cloud.py` |
