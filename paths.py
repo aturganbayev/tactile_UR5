@@ -22,7 +22,6 @@ CALIBRATION = os.path.join(ROOT, "ur_calibration")
 # Geometry / generated data (in data/)
 CONE_STL = os.path.join(DATA, "cone.STL")
 SURFACE_POINTS = os.path.join(DATA, "surface_points.csv")
-TOUCH_POSES = os.path.join(DATA, "touch_poses.csv")
 CONE_TOUCH_POSES = os.path.join(DATA, "cone_touch_poses.csv")
 
 # Calibration artifacts (in ur_calibration/)

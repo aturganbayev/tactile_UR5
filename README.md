@@ -1,9 +1,10 @@
 # Tactile UR5
 
-Automated tactile exploration of a silicone cone using a UR5 robot arm. The pipeline extracts surface geometry from a CAD model, calibrates it to the robot's coordinate frame via ICP, generates approach/press poses for each surface point, executes them on the physical (or simulated) robot over a raw URScript TCP socket, and records the contact force (ATI Nano17) synchronized with the TCP pose for each press.
+Automated tactile exploration of silicone breast phantoms ("eggs") using a UR5 robot arm, aiming to **locate an embedded hard "tumor" ball from touch alone**. The pipeline extracts surface geometry from a CAD model, calibrates it to the robot's coordinate frame via ICP, generates approach/press poses over the surface, executes them on the physical (or simulated) robot over a raw URScript TCP socket, records the contact force (ATI Nano17) synchronized with the TCP pose for each press, and analyzes the resulting force data to localize the embedded ball in 3D — without any prior knowledge of its size, depth, or position.
 
 ```
-cone.STL → surface points → ICP calibration → touch poses → robot execution → force+pose recording
+cone.STL → surface points → ICP calibration → touch poses → robot execution
+  → force+pose recording → stiffness/ball-localization analysis
 ```
 
 ---
@@ -13,7 +14,7 @@ cone.STL → surface points → ICP calibration → touch poses → robot execut
 | Component | Details |
 |---|---|
 | Robot | Universal Robots UR5 (CB2 controller, PolyScope 1.x) |
-| Tool | Silicone cone tactile sensor |
+| Tool | Silicone breast phantom tactile sensor ("egg"), some with an embedded hard ball |
 | Tool tip offset | 86 mm along TCP +Z axis |
 | Force sensor | ATI Nano17 (SI-50-0.5), serial `FT12876` |
 | Force DAQ | NI-DAQ, read via pyForceDAQ (`nidaqmx` backend) |
@@ -53,7 +54,7 @@ system driver, and `atidaq.so` built from `pyForceDAQ/atidaq_cdll/`. See the
 
 Scripts are grouped by pipeline stage. Every script resolves data files through
 `paths.py`, so they can be run from any working directory (e.g.
-`python pose_generation/generate_touch_poses.py` from the repo root).
+`python pose_generation/generate_side_strip_poses.py` from the repo root).
 
 ```
 tactile_UR5/
@@ -61,13 +62,15 @@ tactile_UR5/
 ├── pose_utils.py         # shared geometry + motion parameters
 ├── geometry/             # extract_points.py  (STL → surface points)
 ├── ur_calibration/       # ICP calibration scripts + their artifacts
-├── pose_generation/      # generate_*.py  (surface points → touch poses)
+├── pose_generation/      # generate_side_strip_poses.py  (surface points → touch poses)
 ├── execution/            # run_*.py + robot move/stop scripts
 │   └── streaming/        # live camera stream (mediamtx + ffmpeg)
-├── cone_plots/           # point-cloud / normals visualisation
-├── pyForceDAQ/           # force + pose recording (ATI Nano17)
-├── data/                 # cone.STL + generated pose CSVs
-└── figures/              # plot outputs
+├── cone_plots/           # STL point-cloud / normals visualisation
+├── pyForceDAQ/            # force + pose recording (ATI Nano17) and press-data analysis
+│   └── cone_data/         # sync_cone_data.sh landing spot (gitignored)
+├── ur5_tactile_data/      # per-egg recordings + analysis batch scripts (see below)
+├── data/                  # cone.STL + generated pose CSVs
+└── figures/               # plot outputs from the CAD/pose pipeline (steps 1-6)
 ```
 
 ---
@@ -158,21 +161,7 @@ Re-run `ur_calibration/calibrate_icp.py` if mean error exceeds 5 mm.
 
 ### Step 6 — Generate touch poses
 
-Two options depending on the experiment scope:
-
-#### 6a — Full surface coverage
-
-Generates approach and press TCP poses for every point in `ur_calibration/surface_points_base.csv`.
-
-```bash
-python pose_generation/generate_touch_poses.py
-```
-
-**Output:** `data/touch_poses.csv`
-
-#### 6b — Side strips around the cone (top to bottom)
-
-Generates `NUM_STRIPS` vertical strips evenly distributed around the cone, each with `NUM_POINTS` touch points from near the apex down to `MIN_HEIGHT_FRACTION` of the cone height. All work is done in the cone's own axis frame (axis from the calibration, now vertical).
+Generates `NUM_STRIPS` vertical strips evenly distributed around the cone, each with `NUM_POINTS` touch points from near the apex down to `MIN_HEIGHT_FRACTION` of the cone height. All work is done in the cone's own axis frame (axis from the calibration, now vertical). This is the only pose generator in the pipeline — pressing every one of the ~3000 sampled surface points was never realistic, so only the evenly-spaced strip grid is generated and executed.
 
 Each contact point is **synthesized directly on the strip's meridian** rather than picking the nearest measured point. Because the cone is a surface of revolution, this gives:
 
@@ -200,13 +189,13 @@ Key parameters, defined as tunable constants at the top of the script (see the c
 | `NUM_POINTS` | Touch points per strip (top → bottom) |
 | `MIN_HEIGHT_FRACTION` | Lower bound of the strips (fraction of cone height). Lower it for more lower-cone coverage, at the cost of clearance (arm config keeps the wrist joints off the table, esp. on the near side toward the robot base). |
 
-Both `NUM_STRIPS` and `NUM_POINTS` are free to change; the generator and executor adapt automatically. Each row in all pose CSVs contains a paired approach pose (`approach_distance` = 15 mm stand-off along the surface normal) and a press pose (`press_distance` = 15 mm into the surface).
+Both `NUM_STRIPS` and `NUM_POINTS` are free to change; the generator and executor adapt automatically. Each row in the pose CSV contains a paired approach pose (`approach_distance` = 15 mm stand-off along the surface normal) and a press pose (`press_distance` = 15 mm into the surface).
 
 ---
 
 ### Step 7 — Move robot to start pose
 
-Moves the robot from the home configuration through a safe pre-pose to the hover position directly above the cone apex (30 mm clearance).
+Moves the robot through a safe pre-pose to the hover position directly above the cone apex (30 mm clearance).
 
 ```bash
 python execution/home_start.py
@@ -215,9 +204,8 @@ python execution/home_start.py
 Prompts for `sim` or `real` mode. Motion sequence:
 
 ```
-Home joints [0, -π/2, 0, -π/2, 0, 0]
-  └─ movej → Pre-pose [-π/2, -π/2, -π/2, -π/2, π/2, -π/2]
-       └─ movel → Start pose (apex TCP + 30 mm Z)
+movej → Pre-pose [-π/2, -π/2, -π/2, -π/2, π/2, -π/2]
+   └─ movel → Start pose (apex TCP + 30 mm Z)
 ```
 
 To move directly to the start pose only (skipping the pre-pose joint move):
@@ -242,7 +230,7 @@ Motion strategy (`execution/run_side_strip_poses.py`):
 - **Press and retract use `movel`** — short, controlled linear motion along the surface normal, at the slow contact speed (`*_approach_*` in `pose_utils.py`).
 - **Between strips the tool lifts straight up** (`SAFE_LIFT_M` = 60 mm, base +Z) *before* the joint-space swing back to the start pose, so the `movej` arc cannot graze the cone (which otherwise registers a false press).
 - **Settle pauses are mode-dependent** (`SETTLE`): 0.1 s in sim, 1 s on real.
-- Each transit logs the pose index and strip via `textmsg` — visible in the PolyScope Log tab to identify the failing pose after a protective stop.
+- Each transit logs a **1-based** `pose`/`strip`/`point` identifier via `textmsg` (e.g. `pose 13 strip 2 point 1`) — visible in the PolyScope Log tab to identify the failing pose after a protective stop. `pose` numbering matches the 1-based press numbering `record_cone_press.py` writes, so a specific press can be traced back to the exact strip/point that produced it (the underlying `strip` column in the pose CSV itself stays 0-based).
 
 > **Note on speeds:** because transits are now joint-space `movej`, `V_sim`/`A_sim`/`V_real`/`A_real` are joint speed/accel (rad/s, rad/s²); the `*_approach_*` values used by the `movel` press are linear (m/s, m/s²). Sim is pushed near the UR5 joint limit since there's no hardware to protect.
 
@@ -292,17 +280,19 @@ Two terminals on the DAQ PC:
 # Terminal 1 — recorder (choose 'real'; keep hands off the sensor during bias)
 cd pyForceDAQ
 python3 record_cone_press.py
+# Prompts for the egg name after mode: type e.g. "red_mid" to record into
+# cone_data/red_mid/, or "none" to record straight into cone_data/.
 
 # Terminal 2 — motion that presses the cone
 python3 execution/run_side_strip_poses.py
 ```
 
-Each detected press prints live (`Press N: peak Fz = … at TCP=[…]`) and also updates a **live 3D view** of the TCP path over the cone surface: a small local HTTP server (started automatically, default port `8765`, first free port at/after that) serves a page showing the cone surface (dark gray), the TCP path so far (black), and a red diamond + label (`#N <peak Fz>N`) at each detected press. The page polls a JSON file every `LIVE_PLOT_REFRESH_S` (default `0.3` s) and updates the plot **in place** with Plotly's `Plotly.react()` — unlike a page reload, this does not reset your pan/zoom/rotation. The axis range is computed once from the calibrated cone surface (plus a margin) rather than auto-fit to the growing trajectory, so the camera has a stable frame to rotate around instead of fighting a rescaling view every poll.
+Each detected press prints live (`Press N: peak Fz = … at TCP=[…]`) and also updates a **live 3D view** of the TCP path over the cone surface: a small local HTTP server (started automatically, default port `8765`, first free port at/after that) serves a page showing the cone surface (dark gray), the TCP path so far (black), and a red diamond + label (`#N <peak Fz>N`) at each detected press. The page polls a JSON file every `LIVE_PLOT_REFRESH_S` (default `0.5` s) and updates the plot **in place** with Plotly's `Plotly.react()` — unlike a page reload, this does not reset your pan/zoom/rotation, and the update is skipped entirely while you're dragging to rotate (so rotating the view stays smooth) or when the underlying data hasn't changed. The axis range is computed once from the calibrated cone surface (plus a margin) rather than auto-fit to the growing trajectory, so the camera has a stable frame to rotate around instead of fighting a rescaling view every poll.
 
-By default it does **not** open a browser on the recording machine (`LIVE_PLOT_AUTO_OPEN = False`) — every run instead prints a LAN URL to open from another machine:
+By default it does **not** open a browser on the recording machine (`LIVE_PLOT_AUTO_OPEN = False`) — every run instead prints every reachable LAN URL (probed toward the robot's subnet first, since that's the network the viewing machine is normally on, then the machine's default route) to open from another machine:
 
 ```
-Viewing from another machine on the same network? Open:
+Live plot - open from any machine on the same network:
   http://<this machine's IP>:8765/live_view.html
 ```
 
@@ -310,18 +300,24 @@ This matters in practice: WebGL (which Plotly's 3D plots need) often has no real
 
 The cone surface comes from `ur_calibration/surface_points_base.csv`, which is gitignored (regenerated by `calibrate_icp.py`) — a checkout that never ran calibration locally (e.g. a DAQ PC that only records, while calibration was done on the workstation) won't have it. Without it, the live plot still works but without the cone for scale/reference, and a warning is printed; copy the file over manually (e.g. through the same sshfs mount `sync_cone_data.sh` uses) if you hit this.
 
-The page's own auto-refresh picks up new renders straight from the mount, no syncing needed. This is on by default (`LIVE_PLOT = True` at the top of `record_cone_press.py`). The HTML is rendered by a background thread that only ever takes a quick snapshot of the trajectory/press buffers — a slow render just makes the file update less often, it can never add lag to the 125 Hz DAQ loop (an earlier matplotlib-window version *did* block the loop on every redraw and is why this is HTML now). If `plotly` isn't installed it disables itself automatically with a warning; CSV recording is unaffected either way. One trade-off: because the browser does a full page reload on each auto-refresh, any pan/zoom/rotation you did resets every `LIVE_PLOT_REFRESH_S`. Press `Ctrl-C` to stop the recorder once the motion finishes — the file is updated once more with the final state. Outputs are written to `pyForceDAQ/cone_data/`, timestamped per session:
+The HTML is rendered by a background thread that only ever takes a quick snapshot of the trajectory/press buffers — a slow render just makes the file update less often, it can never add lag to the 125 Hz DAQ loop. If `plotly` isn't installed it disables itself automatically with a warning; CSV recording is unaffected either way. Press `Ctrl-C` to stop the recorder once the motion finishes — the file is updated once more with the final state. Outputs are written to `cone_data/<egg name>/` (or `cone_data/` directly if you typed `none`), timestamped per session:
 
 | File | Contents |
 |---|---|
 | `<ts>_trajectory.csv` | Continuous `t, x,y,z,rx,ry,rz, speed, Fx,Fy,Fz, Fmag` (~125 Hz) |
 | `<ts>_presses.csv` | One row per detected press: peak `Fz` / `\|F\|` and the TCP pose at the peak |
 
-Press detection thresholds on **`Fmag` = |F|** (not signed `Fz`) — a touch near the cone's embedded bulge can load mostly `Fx`/`Fy` with `Fz` negative, missing a `Fz`-only threshold even though `|F|` is well above it. A press starts once `Fmag` rises above `PRESS_ON_N` (`0.5 N`) and is only considered over once `Fmag` has stayed below `PRESS_OFF_N` (`0.3 N`) for `PRESS_OFF_DEBOUNCE_S` (`0.5 s`) — long enough to ride out the momentary dip some cones show between the soft outer shell and an embedded hard "tumor" ball, which would otherwise look like two separate presses. After a press ends, new presses are ignored for `PRESS_REFRACTORY_S` (`1.5 s`) to filter out the rebound as the tool retracts. This window must stay **below the shortest real press-to-press gap** (~2.6 s at the current approach speeds): a longer window (it used to be 4 s) swallows weak presses outright and clips the impact peak off presses that start inside it. Logged at `LOOP_HZ` = 125 Hz.
+**Press detection** thresholds on **`Fmag` = |F|** (not signed `Fz`) — a touch near the cone's embedded bulge can load mostly `Fx`/`Fy` with `Fz` negative, missing a `Fz`-only threshold even though `|F|` is well above it. A press starts once `Fmag` rises above `PRESS_ON_N` (`0.3 N`) and is only considered over once `Fmag` has stayed below `PRESS_OFF_N` (`0.15 N`) for `PRESS_OFF_DEBOUNCE_S` (`0.5 s`) — long enough to ride out the momentary dip some cones show between the soft outer shell and an embedded hard "tumor" ball, which would otherwise look like two separate presses. Thresholds sit well above the sensor noise floor (~0.03 N) but low enough to catch shallow contacts — a press over a high point of a phantom can peak at only ~0.4 N if the calibrated surface sits a couple of mm off.
+
+After a press ends, new presses are ignored for `PRESS_REFRACTORY_S` (`1.5 s`) to filter out the rebound as the tool retracts. This window must stay **below the shortest real press-to-press gap** (~2.6 s at the current approach speeds): a longer window (it used to be 4 s) swallows weak presses outright and clips the impact peak off presses that start inside it.
+
+**Speed gate against transit false-positives:** lowering the force threshold to catch shallow real presses also makes the detector sensitive to brief transit contacts — grazing the cone during a between-strip swing, or the tacky silicone momentarily sticking to the retracting tip. Both happen entirely while the tool is moving; a real press always contains the ~1 s stationary hold at the pressed position. A candidate press is only recorded if at least one in-contact sample had TCP speed ≤ `PRESS_HOLD_SPEED_MS` (`0.01` m/s); otherwise it's dropped and logged as `[info] ignored moving contact`.
+
+Logged at `LOOP_HZ` = 125 Hz.
 
 **DAQ sample rate:** the Nano17 runs in HW-timed single-point mode, so the host must service the device every sample; too high a rate overruns the DAQ buffer (NI error `-200714`). `SENSOR_RATE` (default `500` Hz) keeps comfortable headroom over the 125 Hz logging loop. Lower it (e.g. `250`) if the overrun recurs on a loaded machine.
 
-### Visualize a recording
+### Visualize a single recording
 
 ```bash
 python pyForceDAQ/plot_cone_data.py [stamp]
@@ -337,18 +333,82 @@ python pyForceDAQ/plot_cone_data.py [stamp]
 | `<stamp>_peak_force_per_press.png` | Peak `Fz`/`\|F\|` bar chart, one bar per press |
 | `<stamp>_press_force_on_cone.png` | Peak force at each press mapped onto the calibrated cone surface, top/next-24 marked with star/triangle markers |
 
-The same module also exposes `save_trajectory_3d_html` / `save_press_force_on_cone_html`, which render the equivalent interactive WebGL plots (Plotly) to standalone `.html` files — useful for rotating/zooming a session in a browser without rerunning Python. They aren't wired into `main()`; call them from a script or REPL when needed.
+The same module also exposes `save_trajectory_3d_html` / `save_press_force_on_cone_html`, which render the equivalent interactive WebGL plots (Plotly) to standalone `.html` files. For batch use across a whole data folder, see [Per-egg data and analysis](#per-egg-data-and-analysis-ur5_tactile_data) below.
 
-### Sync recordings to the workstation
+### Sync recordings from the DAQ PC
 
-`sync_cone_data.sh` copies recordings from the DAQ PC (mounted via sshfs at `~/remote-server`) into this repo's `cone_data/`. Run it on the workstation:
+`sync_cone_data.sh` copies recordings from the DAQ PC (mounted via sshfs at `~/remote-server`) into this repo's `pyForceDAQ/cone_data/`. Run it on the workstation:
 
 ```bash
 ~/github_local/tactile_UR5/pyForceDAQ/sync_cone_data.sh          # one-shot copy
 ~/github_local/tactile_UR5/pyForceDAQ/sync_cone_data.sh --watch  # auto-copy every 10s
 ```
 
-Copy is the default (originals kept; safe to run while a session is recording). `--watch [SECS]` polls on an interval; `--move` deletes the source files after copying. Recordings (`*.csv`, `*.csv.gz`) are gitignored.
+Copy is the default (originals kept; safe to run while a session is recording). `--watch [SECS]` polls on an interval; `--move` deletes the source files after copying. It mirrors the DAQ PC's folder structure recursively, so a per-egg subfolder recorded via the name prompt lands as `pyForceDAQ/cone_data/<egg name>/`. The batch analysis scripts operate on `ur5_tactile_data/`, so **move or copy each synced egg folder from `pyForceDAQ/cone_data/` into `ur5_tactile_data/`** once it's synced, before running the analysis below.
+
+---
+
+## Per-egg data and analysis (`ur5_tactile_data/`)
+
+Recordings, one subfolder per egg, live in `ur5_tactile_data/` in this repo (not `~/ur5_tactile_data` — that location is deprecated). `empty/` is the reference phantom: the same body with no ball inside, pressed over the identical pose grid. Every comparative analysis below is measured against it, so record `empty/` before analyzing any other egg.
+
+```
+ur5_tactile_data/
+├── plot_cone_data_batch.py    # raw force/trajectory plots, per egg
+├── stiffness_map_batch.py     # stiffness maps vs empty/, per egg
+├── ball_cloud_batch.py        # 3D ball localization vs empty/, per egg
+├── empty/                     # reference phantom (no ball)
+│   └── <ts>_trajectory.csv, <ts>_presses.csv
+├── red_mid/
+│   └── ...
+└── ...
+```
+
+Each batch script walks every subfolder here, so a new egg folder (recorded, then synced/copied in as above) is picked up automatically — nothing needs to be registered by hand. All three write their outputs back into the egg's own subfolder, named `<egg>_<plot>.png`/`.html`.
+
+### Why not just peak force?
+
+The peak force recorded per press mixes two things that can't be told apart from a single number: how stiff the tissue is at that point, and how deep the press actually reached (which depends on calibration accuracy — a couple of mm of surface offset changes peak force far more than a soft-tissue-vs-tumor difference does). The analysis below instead works from the **full force-vs-indentation curve** of each press (recorded at 125 Hz through the whole loading phase), which is far more informative and much less sensitive to calibration error.
+
+### Stiffness maps
+
+```bash
+cd ur5_tactile_data && python3 stiffness_map_batch.py
+# or, for one egg directly:
+python3 pyForceDAQ/stiffness_map.py <egg_dir> [<reference_dir>]
+```
+
+For every press, fits a local stiffness (`dF/d(depth)`, N/mm) from the loading curve, then maps it over the egg's surface (azimuth × height) three ways:
+
+- **Absolute stiffness** per egg — mostly reflects the natural taper of the phantom (stiffer near the base).
+- **Self-baseline residual** — each press's stiffness compared to the median of its own height row, *within the same recording*. Immune to phantom-to-phantom body/dimension differences (no reference egg needed), but blind to a ball centered on the axis (perfectly axisymmetric residual cancels out).
+- **Press-matched differential vs `empty/`** — each press compared to the same pose on the reference egg. Catches an on-axis ball (shows up as a height-band ring) but is more sensitive to phantom body/dimension differences between the two recordings.
+
+Outputs: `<egg>_stiffness_curves.png` (sample loading curves) and `<egg>_stiffness_map.png` (the three map rows described above).
+
+### 3D ball localization
+
+```bash
+cd ur5_tactile_data && python3 ball_cloud_batch.py
+# or, for one egg directly (REFERENCE_DIR defaults to the "empty" sibling folder):
+python3 pyForceDAQ/ball_point_cloud.py <egg_dir> [<reference_dir>]
+```
+
+Every press is a probe along a known ray into the tissue. For each press, the point where the egg's loading curve starts to diverge from `empty`'s curve at the same location is where the tip first felt the ball — and the tip's measured 3D position at that depth is a point on (just outside) the ball's boundary. Collecting these divergence points across all presses that show clear ball influence gives a partial point cloud of the ball's outward-facing surface; a least-squares sphere fit turns it into a **center + radius estimate**. No prior knowledge of the ball's size, depth, or on/off-axis position is used anywhere in this — it's read entirely from the force data.
+
+The one systematic bias to keep in mind: the silicone shell compresses slightly ahead of the tip before true contact, so boundary points sit a little outside the real surface and the fitted radius is a few mm larger than the true one. Center position and relative comparisons between eggs are not affected by this bias.
+
+Outputs: `<egg>_ball_cloud.png` (static 3D view) and `<egg>_ball_cloud.html` (interactive, rotate in a browser).
+
+### Demo: `red_mid`
+
+Raw peak force per press mapped onto the calibrated surface, next to the localized ball fitted from the same recording:
+
+| Peak press force on the surface | Localized ball (fitted sphere + boundary points) |
+|---|---|
+| ![red_mid press force on cone](ur5_tactile_data/red_mid/red_mid_press_force_on_cone.png) | ![red_mid ball point cloud](ur5_tactile_data/red_mid/red_mid_ball_cloud.png) |
+
+The raw force map (left) only shows *that* one region pressed harder — it doesn't say why, and a naive read could mistake the pattern for the phantom's natural taper. The stiffness/ball-localization pipeline (right) resolves that ambiguity: 98 presses showed clear stiffness excess over the `empty` reference, and the fitted sphere lands on-axis at 88.5 mm height with radius 17.5 mm (fit RMS 2.3 mm) — recovered from force data alone, with no input about where the ball actually was.
 
 ---
 
@@ -460,14 +520,13 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `ur_calibration/record_icp_points.py` | Interactively record physical touch points from the teach pendant |
 | `ur_calibration/calibrate_icp.py` | Align STL to robot base frame — axis pinned vertical, translation-only fit (avoids the spurious tilt a free ICP gets from apex-clustered points) |
 | `ur_calibration/validate_calibration.py` | Verify calibration quality against recorded points |
-| `pose_generation/generate_touch_poses.py` | Generate approach/press poses for the full surface |
 | `pose_generation/generate_side_strip_poses.py` | Generate poses for multiple strips around the cone, top to bottom |
 | `execution/run_side_strip_poses.py` | Execute side strip touch sequence on the robot |
 | `execution/streaming/stream.py` | Interactive script to start or stop the camera stream |
 | `execution/streaming/start_stream.sh` | Starts mediamtx RTSP server and ffmpeg camera capture |
 | `execution/streaming/stop_stream.sh` | Kills mediamtx and ffmpeg processes |
 | `execution/streaming/mediamtx.yml` | mediamtx configuration (RTSP/HLS/WebRTC bound to Tailscale IP) |
-| `execution/home_start.py` | Move robot home → pre-pose → start pose |
+| `execution/home_start.py` | Move robot through pre-pose to start pose |
 | `execution/start_pose.py` | Move robot directly to start pose |
 | `execution/go_home.py` | Return robot to home configuration |
 | `execution/print_tcp_pose.py` | Print the real robot's current TCP pose (one line: `x y z` mm + `rx ry rz` rad) |
@@ -475,25 +534,30 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `execution/stop_robot.py` | Emergency stop |
 | `execution/shutdown_robot.py` | Return home, then power down the controller (`real` requires confirmation) |
 | `execution/watch_robot_messages.py` | Live-decode the Robot Message stream (port 30001) — mirrors the pendant's Log tab in real time |
-| `pyForceDAQ/record_cone_press.py` | Record Nano17 force + UR5 TCP pose; auto-detect each press and log its peak force with the pose at that instant |
-| `pyForceDAQ/plot_cone_data.py` | Plot a recorded session: force/speed over time, 3D approach paths and peak-force-on-cone-surface (top presses by force highlighted); also exposes interactive Plotly HTML variants |
-| `pyForceDAQ/sync_cone_data.sh` | Copy recordings from the remote DAQ PC (sshfs mount) into the local repo |
+| `pyForceDAQ/record_cone_press.py` | Record Nano17 force + UR5 TCP pose; auto-detect each press (with a speed gate against transit false-positives) and log its peak force with the pose at that instant; prompts for an egg name to record into a per-egg subfolder |
+| `pyForceDAQ/plot_cone_data.py` | Plot one recorded session: force/speed over time, 3D approach paths and peak-force-on-cone-surface (top presses by force highlighted); also exposes interactive Plotly HTML variants |
+| `pyForceDAQ/stiffness_map.py` | Fit per-press stiffness from loading curves and map it (absolute / self-residual / vs a reference egg) over the surface; importable by `ur5_tactile_data/stiffness_map_batch.py` |
+| `pyForceDAQ/ball_point_cloud.py` | Localize the embedded ball in 3D from where each egg's force curve diverges from the reference egg's; sphere-fits the boundary point cloud; importable by `ur5_tactile_data/ball_cloud_batch.py` |
+| `pyForceDAQ/sync_cone_data.sh` | Copy recordings from the remote DAQ PC (sshfs mount) into `pyForceDAQ/cone_data/` |
 | `pyForceDAQ/calibration/` | ATI sensor calibration files (`FT12876` = Nano17, `FT12877`) |
+| `ur5_tactile_data/plot_cone_data_batch.py` | Batch-run `plot_cone_data.py`'s plots over every egg folder here; skips recordings whose plots are already up to date |
+| `ur5_tactile_data/stiffness_map_batch.py` | Batch-run stiffness maps for every egg here against `empty/` |
+| `ur5_tactile_data/ball_cloud_batch.py` | Batch-run 3D ball localization for every egg here against `empty/` |
 | `data/surface_points.csv` | Raw STL surface points (mm, STL frame) |
 | `ur_calibration/surface_points_base.csv` | Surface points in robot base frame (m) |
 | `ur_calibration/physical_points.csv` | Recorded physical touch points from teach pendant |
 | `ur_calibration/icp_transformation_matrix.txt` | 4×4 STL-to-robot transform from ICP |
-| `data/touch_poses.csv` | Full-surface touch poses |
 | `data/cone_touch_poses.csv` | Side strip touch poses (with strip index and tilt per pose) |
-| `figures/` | Saved plot outputs |
-| `pyForceDAQ/cone_data/` | Force + pose recordings (per-session trajectory and per-press CSVs; gitignored) |
+| `figures/` | Plot outputs from the CAD/pose pipeline (steps 1–6) |
+| `pyForceDAQ/cone_data/` | `sync_cone_data.sh` landing spot for recordings synced from the DAQ PC (gitignored) |
+| `ur5_tactile_data/<egg>/` | Per-egg recordings (`<ts>_trajectory.csv`, `<ts>_presses.csv`) and analysis outputs |
 | `cad_env/` | Python virtual environment |
 
 ---
 
 ## Key Parameters
 
-Defined in `pose_utils.py` and the generator scripts:
+Defined in `pose_utils.py` and the generator/analysis scripts:
 
 | Parameter | Value | Location |
 |---|---|---|
@@ -509,19 +573,21 @@ Defined in `pose_utils.py` and the generator scripts:
 | Real approach (contact) speed / accel | `V_approach_real = 0.1` m/s, `A_approach_real = 0.2` m/s² | `pose_utils.py` |
 | Lift before return to start | `SAFE_LIFT_M = 0.06` m (base +Z) | `execution/run_side_strip_poses.py` |
 | Settle pause (sim / real) | `0.1` s / `1` s | `execution/run_side_strip_poses.py` |
-| Number of strips | `NUM_STRIPS` — tunable, evenly around the cone | `pose_generation/generate_side_strip_poses.py` |
-| Points per strip | `NUM_POINTS` — tunable, apex → lower bound | `pose_generation/generate_side_strip_poses.py` |
-| Side strip lower bound | `MIN_HEIGHT_FRACTION` — tunable, fraction from base | `pose_generation/generate_side_strip_poses.py` |
-| Press detect threshold | `0.5` N on / `0.3` N off, on `Fmag` | `pyForceDAQ/record_cone_press.py` |
+| Number of strips | `NUM_STRIPS = 24` — tunable, evenly around the cone | `pose_generation/generate_side_strip_poses.py` |
+| Points per strip | `NUM_POINTS = 12` — tunable, apex → lower bound | `pose_generation/generate_side_strip_poses.py` |
+| Side strip lower bound | `MIN_HEIGHT_FRACTION = 0.45` — tunable, fraction from base | `pose_generation/generate_side_strip_poses.py` |
+| Press detect threshold | `PRESS_ON_N = 0.3` N on / `PRESS_OFF_N = 0.15` N off, on `Fmag` | `pyForceDAQ/record_cone_press.py` |
 | Press-off debounce | `PRESS_OFF_DEBOUNCE_S = 0.5` s | `pyForceDAQ/record_cone_press.py` |
 | Press refractory window | `PRESS_REFRACTORY_S = 1.5` s (keep below the shortest press-to-press gap) | `pyForceDAQ/record_cone_press.py` |
+| Press hold-speed gate | `PRESS_HOLD_SPEED_MS = 0.01` m/s — a candidate press needs an in-contact sample at/below this speed to count | `pyForceDAQ/record_cone_press.py` |
 | DAQ sample rate | `SENSOR_RATE = 500` Hz | `pyForceDAQ/record_cone_press.py` |
 | Force log rate | `125` Hz (`LOOP_HZ`) | `pyForceDAQ/record_cone_press.py` |
 | Force sensor | `FT12876` (Nano17) | `pyForceDAQ/record_cone_press.py` |
 | Live plot on/off | `LIVE_PLOT = True` | `pyForceDAQ/record_cone_press.py` |
 | Live plot auto-open browser locally | `LIVE_PLOT_AUTO_OPEN = False` | `pyForceDAQ/record_cone_press.py` |
 | Live plot HTTP port | `LIVE_PLOT_PORT = 8765` (first free at/after this) | `pyForceDAQ/record_cone_press.py` |
-| Live plot re-render / poll interval | `LIVE_PLOT_REFRESH_S = 0.3` s | `pyForceDAQ/record_cone_press.py` |
+| Live plot re-render / poll interval | `LIVE_PLOT_REFRESH_S = 0.5` s | `pyForceDAQ/record_cone_press.py` |
 | Live plot trajectory decimation / window | `LIVE_PLOT_DECIMATE = 5`, `LIVE_PLOT_MAX_POINTS = 3000` | `pyForceDAQ/record_cone_press.py` |
-| Live plot cone surface point cap | `LIVE_PLOT_SURFACE_MAX_POINTS = 1500` | `pyForceDAQ/record_cone_press.py` |
-
+| Live plot cone surface point cap | `LIVE_PLOT_SURFACE_MAX_POINTS = 800` | `pyForceDAQ/record_cone_press.py` |
+| Ball-cloud min force excess | `MIN_EXCESS_N = 0.8` N — a press needs at least this much force excess over the reference to contribute a boundary point | `pyForceDAQ/ball_point_cloud.py` |
+| Ball-cloud onset fraction | `ONSET_FRACTION = 0.3` — boundary point taken where excess force first reaches this fraction of its final value | `pyForceDAQ/ball_point_cloud.py` |
