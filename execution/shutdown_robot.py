@@ -33,10 +33,12 @@ def main():
     # Return to home before shutdown so the arm isn't left in an awkward pose
     # when the controller powers off.
     ur_script = (
-        f"movej([{home_pose_line}], a={A}, v={V}, t=0, r=0)\n"
-        "powerdown()\n"
+        "def my_program():\n"
+        f"  movej([{home_pose_line}], a={A}, v={V}, t=0, r=0)\n"
+        "  powerdown()\n"
+        "end\n"
+        "my_program()\n"
     )
-    print(ur_script)
 
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
