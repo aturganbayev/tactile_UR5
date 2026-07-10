@@ -8,18 +8,23 @@ from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, 
 
 
 def main():
-    mode = input("Select mode ('sim' or 'real'): ").strip().lower()
-    if mode == "sim":
-        HOST = SIM_HOST
-        A = A_sim
-        V = V_sim
-    elif mode == "real":
-        HOST = REAL_HOST
-        A = A_real
-        V = V_real
-    else:
-        print("Invalid mode. Exiting.")
-        return
+    while True:
+        mode = input("Select mode ('sim' or 'real'): ").strip().lower()
+        
+        if mode == "sim":
+            HOST = SIM_HOST
+            A = A_sim
+            V = V_sim
+            break
+
+        elif mode == "real":
+            HOST = REAL_HOST
+            A = A_real
+            V = V_real
+            break
+        else:
+            print("Invalid input. Please type 'sim' or 'real'.")
+        
 
     PORT = 30003
 
@@ -35,7 +40,6 @@ def main():
         "end\n"
         "my_program()\n"
     )
-    print(ur_script)
 
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

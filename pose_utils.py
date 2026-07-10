@@ -31,7 +31,7 @@ def contact_to_tcp_position(contact_xyz, rotvec, tip_offset=None):
     return np.asarray(contact_xyz, dtype=float) - rotvec_to_matrix(rotvec) @ np.asarray(tip_offset, dtype=float)
 
 
-def normal_to_rotvec(normal):
+def normal_to_rotvec(normal, y_hint=None):
     normal = np.asarray(normal, dtype=float)
     normal = normal / np.linalg.norm(normal)
 
@@ -41,7 +41,20 @@ def normal_to_rotvec(normal):
     world_z = np.array([0.0, 0.0, 1.0])
     y_tcp = np.cross(world_z, z_tcp)
     if np.linalg.norm(y_tcp) < 1e-3:
-        y_tcp = np.array([0.0, 1.0, 0.0])
+        # z_tcp is (anti)parallel to world Z - e.g. a cone apex, where the
+        # outward normal is purely axial and azimuth is geometrically
+        # undefined. cross(world_z, z_tcp) can't pick a horizontal axis here,
+        # so without a hint every such point silently falls back to the same
+        # fixed [0, 1, 0] frame regardless of which strip it belongs to. That
+        # produced a real (up to ~165 deg, mean ~78 deg across strips)
+        # reorientation between a strip's apex point and its very next point,
+        # since every OTHER point on the strip locks its horizontal axis to
+        # the strip's azimuth. Callers that know the intended azimuth (e.g.
+        # generate_side_strip_poses.py, via the meridian-perpendicular
+        # direction cross(e_r, axis)) should pass it as y_hint so the apex
+        # frame is consistent with the rest of its strip.
+        y_tcp = np.array([0.0, 1.0, 0.0]) if y_hint is None else np.asarray(y_hint, dtype=float)
+        y_tcp = y_tcp / np.linalg.norm(y_tcp)
     else:
         y_tcp = y_tcp / np.linalg.norm(y_tcp)
 
@@ -211,12 +224,15 @@ def apex_start_tcp_pose(clearance_m=None, physical_points_csv=None):
     return np.concatenate([tcp, rotvec])
 
 
-def approach_and_press_poses(surface_point, normal, approach_distance, press_distance, tip_offset=None, tilt_deg=0.0):
+def approach_and_press_poses(surface_point, normal, approach_distance, press_distance, tip_offset=None, tilt_deg=0.0, y_hint=None):
     """Build TCP approach/press poses for a desired surface contact point.
 
     tilt_deg tilts only the tool ORIENTATION toward vertical (holder
     clearance); the tip positions and press direction stay on the true
-    surface normal.
+    surface normal. y_hint is forwarded to normal_to_rotvec, used only when
+    the normal is (anti)parallel to world Z (e.g. a cone apex) - pass the
+    meridian-perpendicular direction there to keep the orientation consistent
+    with the rest of the point's strip instead of an azimuth-blind default.
     """
     if tip_offset is None:
         tip_offset = TOOL_TIP_OFFSET
@@ -225,7 +241,7 @@ def approach_and_press_poses(surface_point, normal, approach_distance, press_dis
     normal = np.asarray(normal, dtype=float)
     normal = normal / np.linalg.norm(normal)
 
-    rotvec = normal_to_rotvec(tilt_normal_toward_vertical(normal, tilt_deg))
+    rotvec = normal_to_rotvec(tilt_normal_toward_vertical(normal, tilt_deg), y_hint=y_hint)
     tip_approach = surface_point + approach_distance * normal
     tip_press = surface_point - press_distance * normal
 

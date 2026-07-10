@@ -160,7 +160,7 @@ Re-run `ur_calibration/calibrate_icp.py` if mean error exceeds 5 mm.
 
 ### Step 6 — Generate touch poses
 
-Generates `NUM_STRIPS` vertical strips evenly distributed around the cone, each with `NUM_POINTS` touch points from near the apex down to `MIN_HEIGHT_FRACTION` of the cone height. All work is done in the cone's own axis frame (axis from the calibration, now vertical). This is the only pose generator in the pipeline — pressing every one of the ~3000 sampled surface points was never realistic, so only the evenly-spaced strip grid is generated and executed.
+Generates `NUM_STRIPS` vertical strips evenly distributed around the cone, each with `NUM_POINTS` touch points from near the apex down to `MIN_HEIGHT_FRACTION` of the cone height. All work is done in the cone's own axis frame (the vertical axis established during calibration). This is the only pose generator in the pipeline — pressing every one of the ~3000 sampled surface points isn't realistic, so only the evenly-spaced strip grid is generated and executed.
 
 Each contact point is **synthesized directly on the strip's meridian** rather than picking the nearest measured point. Because the cone is a surface of revolution, this gives:
 
@@ -169,6 +169,8 @@ Each contact point is **synthesized directly on the strip's meridian** rather th
 - **Clean normals** — the surface normal is taken from the nearest measured point, projected into the meridian plane and forced outward (handles the apex too).
 
 To keep the printed sensor holder clear of the cone and the wrist clear of the lower arm, the tool orientation is tilted toward vertical with a height-scaled magnitude: `MIN_ORIENTATION_TILT_DEG` (7°) at the apex band up to `MAX_ORIENTATION_TILT_DEG` (14°) at the lowest band. **Only the orientation tilts** — the contact point and press direction stay on the true surface normal — so the press stays near-perpendicular (≈5–15° off-normal). The applied tilt is recorded per pose in the `tilt_deg` CSV column.
+
+**Apex orientation matches its strip's azimuth.** At the true apex the outward normal points straight up the cone axis, so azimuth has no local meaning there. `normal_to_rotvec()` in `pose_utils.py` resolves this case with a `y_hint`: the generator passes the strip's meridian-perpendicular direction, so the apex point's frame stays consistent with every other point in its strip. Descending a strip, the tool orientation therefore changes smoothly in pitch only — azimuth is constant top to bottom.
 
 ```bash
 python pose_generation/generate_side_strip_poses.py
@@ -225,13 +227,17 @@ python execution/run_side_strip_poses.py
 
 Motion strategy (`execution/run_side_strip_poses.py`):
 
-- **Inverse kinematics is solved in software** (`ur5_ik_near` in `pose_utils.py`, validated UR5 FK/IK) and transits command joint targets directly with **`movej([j1..j6])`**. The controller's `get_inverse_kin` is *not* used: it does a single Newton solve from one fixed seed, which cannot converge for poses spread all the way around the cone, leaving the arm reorienting without reaching the points. The seed is **chained from the previous solved pose within a strip** (smooth path) and **reset to the start config between strips** (so the base/wrist don't wind up as the strips wrap 360°). Unreachable poses are flagged and skipped.
+- **Inverse kinematics is solved in software** (`ur5_ik_near` in `pose_utils.py`, validated UR5 FK/IK) for every pose, seeded from the previous solution within a strip and reset to the start config between strips — this both validates reachability (unreachable poses are flagged and skipped) and keeps a chained seed ready for the next strip's entry `movej`. The controller's `get_inverse_kin` is *not* used: it does a single Newton solve from one fixed seed, which cannot converge for poses spread all the way around the cone, leaving the arm reorienting without reaching the points.
+- **Only the first point of each strip transits in joint space** (`movej([j1..j6])`) — that's the big swing from the start pose all the way around to the strip's azimuth, which needs the offline IK solve above.
+- **Every other transit within a strip uses `movel`** to the precomputed Cartesian approach pose, at the slow contact speed (`*_approach_*`, same as the press itself) — consecutive points are millimetres apart and share the same azimuth (see apex-orientation note above), so a straight-line Cartesian move keeps the tool orientation locked to that azimuth the whole way.
 - **Press and retract use `movel`** — short, controlled linear motion along the surface normal, at the slow contact speed (`*_approach_*` in `pose_utils.py`).
 - **Between strips the tool lifts straight up** (`SAFE_LIFT_M` = 60 mm, base +Z) *before* the joint-space swing back to the start pose, so the `movej` arc cannot graze the cone (which otherwise registers a false press).
 - **Settle pauses are mode-dependent** (`SETTLE`): 0.1 s in sim, 1 s on real.
 - Each transit logs a **1-based** `pose`/`strip`/`point` identifier via `textmsg` (e.g. `pose 13 strip 2 point 1`) — visible in the PolyScope Log tab to identify the failing pose after a protective stop. `pose` numbering matches the 1-based press numbering `record_cone_press.py` writes, so a specific press can be traced back to the exact strip/point that produced it (the underlying `strip` column in the pose CSV itself stays 0-based).
 
-> **Note on speeds:** because transits are now joint-space `movej`, `V_sim`/`A_sim`/`V_real`/`A_real` are joint speed/accel (rad/s, rad/s²); the `*_approach_*` values used by the `movel` press are linear (m/s, m/s²). Sim is pushed near the UR5 joint limit since there's no hardware to protect.
+> **Note on speeds:** `V_sim`/`A_sim`/`V_real`/`A_real` (joint speed/accel, rad/s and rad/s²) apply only to the once-per-strip entry `movej`; every within-strip transit, press, and retract moves at the `*_approach_*` linear speed/accel (m/s, m/s²) instead. Sim's transit values are pushed near the UR5 joint limit since there's no hardware to protect.
+
+> **Horizontal rotation happens only at strip entry.** Because the apex sits on the cone's axis, the arm's *position* barely changes between strips, so the azimuth change between one strip and the next is carried almost entirely by wrist_3 — visible as the tool spinning in place right before descending into the new strip. This entry swing happens in free space, before any contact with the phantom, so it never affects press data; once inside a strip the tool holds a constant heading and only pitches over as it descends.
 
 > **Real-robot caveat:** the software IK uses the *ideal* UR5 DH parameters, which match URSim exactly. On hardware the calibrated DH differs by ~mm, so a joint-commanded approach (a hover point) may land a few mm off — harmless, and the `movel` press still hits the correct Cartesian target. Always dry-run in sim first.
 
@@ -308,7 +314,7 @@ The HTML is rendered by a background thread that only ever takes a quick snapsho
 
 **Press detection** thresholds on **`Fmag` = |F|** (not signed `Fz`) — a touch near the cone's embedded bulge can load mostly `Fx`/`Fy` with `Fz` negative, missing a `Fz`-only threshold even though `|F|` is well above it. A press starts once `Fmag` rises above `PRESS_ON_N` (`0.3 N`) and is only considered over once `Fmag` has stayed below `PRESS_OFF_N` (`0.15 N`) for `PRESS_OFF_DEBOUNCE_S` (`0.5 s`) — long enough to ride out the momentary dip some cones show between the soft outer shell and an embedded hard "tumor" ball, which would otherwise look like two separate presses. Thresholds sit well above the sensor noise floor (~0.03 N) but low enough to catch shallow contacts — a press over a high point of a phantom can peak at only ~0.4 N if the calibrated surface sits a couple of mm off.
 
-After a press ends, new presses are ignored for `PRESS_REFRACTORY_S` (`1.5 s`) to filter out the rebound as the tool retracts. This window must stay **below the shortest real press-to-press gap** (~2.6 s at the current approach speeds): a longer window (it used to be 4 s) swallows weak presses outright and clips the impact peak off presses that start inside it.
+After a press ends, new presses are ignored for `PRESS_REFRACTORY_S` (`1.5 s`) to filter out the rebound as the tool retracts. This window must stay **below the shortest real press-to-press gap** (~2.6 s at the current approach speeds), since a longer window would swallow weak presses outright and clip the impact peak off presses that start inside it.
 
 **Speed gate against transit false-positives:** lowering the force threshold to catch shallow real presses also makes the detector sensitive to brief transit contacts — grazing the cone during a between-strip swing, or the tacky silicone momentarily sticking to the retracting tip. Both happen entirely while the tool is moving; a real press always contains the ~1 s stationary hold at the pressed position. A candidate press is only recorded if at least one in-contact sample had TCP speed ≤ `PRESS_HOLD_SPEED_MS` (`0.01` m/s); otherwise it's dropped and logged as `[info] ignored moving contact`.
 
@@ -436,7 +442,7 @@ Sends `stopl(2.5)` directly to the real robot (`REAL_HOST` in `pose_utils.py`, `
 
 ### Shutdown
 
-Returns to the home configuration, then powers down the controller. Prompts for `sim`/`real`; `real` requires typing `yes` to confirm before sending.
+Returns to the home configuration, then powers down the real robot controller. Requires typing `yes` to confirm before sending.
 
 ```bash
 python execution/shutdown_robot.py
@@ -485,7 +491,7 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `execution/print_tcp_pose.py` | Print the real robot's current TCP pose (one line: `x y z` mm + `rx ry rz` rad) |
 | `execution/move_to_pose.py` | Move the real robot's TCP to an input pose (same format; confirms, then slow linear move) |
 | `execution/stop_robot.py` | Emergency stop |
-| `execution/shutdown_robot.py` | Return home, then power down the controller (`real` requires confirmation) |
+| `execution/shutdown_robot.py` | Return home, then power down the real robot controller (requires typing `yes` to confirm) |
 | `execution/watch_robot_messages.py` | Live-decode the Robot Message stream (port 30001) — mirrors the pendant's Log tab in real time |
 | `pyForceDAQ/record_cone_press.py` | Record Nano17 force + UR5 TCP pose; auto-detect each press (with a speed gate against transit false-positives) and log its peak force with the pose at that instant; prompts for an egg name to record into a per-egg subfolder |
 | `pyForceDAQ/plot_cone_data.py` | Plot one recorded session: force/speed over time, 3D approach paths and peak-force-on-cone-surface (top presses by force highlighted); also exposes interactive Plotly HTML variants |

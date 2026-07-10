@@ -8,23 +8,18 @@ from pose_utils import pose_str, A_sim, A_real, V_sim, V_real, SIM_HOST, REAL_HO
 
 
 def main():
-    mode = input("Select mode ('sim' or 'real'): ").strip().lower()
-    if mode == "sim":
-        HOST = SIM_HOST
-        A = A_sim
-        V = V_sim
-    elif mode == "real":
-        HOST = REAL_HOST
-        A = A_real
-        V = V_real
+
+    while True:
+
         confirm = input("Shutting down the REAL robot controller. Type 'yes' to confirm: ").strip().lower()
         if confirm != "yes":
-            print("Aborted.")
+            print("Wrong input. Exiting")
             return
-    else:
-        print("Invalid mode. Exiting.")
-        return
+        else:
+            break
+            
 
+    HOST = REAL_HOST
     PORT = 30003
 
     home_pose = [0, -1.57, 0, -1.57, 0, 0]
@@ -34,7 +29,7 @@ def main():
     # when the controller powers off.
     ur_script = (
         "def my_program():\n"
-        f"  movej([{home_pose_line}], a={A}, v={V}, t=0, r=0)\n"
+        f"  movej([{home_pose_line}], a={A_real}, v={V_real}, t=0, r=0)\n"
         "  powerdown()\n"
         "end\n"
         "my_program()\n"

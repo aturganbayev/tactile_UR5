@@ -28,20 +28,31 @@ def main():
         print(f"Error: {input_csv} not found. Please run generate_side_strip_poses.py first.")
         return
 
-    mode = input("Select mode ('sim' or 'real'): ").strip().lower()
-    if mode == "sim":
-        HOST = SIM_HOST
-        A, V = A_sim, V_sim                       # fast transit
-        A_app, V_app = A_approach_sim, V_approach_sim   # slow contact
-        SETTLE = 0.1   # short settle between moves; no real hardware to wait on
-    elif mode == "real":
-        HOST = REAL_HOST
-        A, V = A_real, V_real
-        A_app, V_app = A_approach_real, V_approach_real
-        SETTLE = 1   # let the arm and force reading settle before the next move
-    else:
-        print("Invalid mode. Exiting.")
-        return
+    while True:
+
+        mode = input("Select mode ('sim' or 'real'): ").strip().lower()
+        if mode == "sim":
+            HOST = SIM_HOST
+            A = A_sim
+            V = V_sim
+            A_app = A_approach_sim
+            V_app = V_approach_sim
+            SETTLE = 0.1
+
+            break
+
+        elif mode == "real":
+            HOST = REAL_HOST
+            A = A_real
+            V = V_real
+            A_app = A_approach_real
+            V_app = V_approach_real
+            SETTLE = 1
+            break
+        else:
+
+            print("Invalid input. Please type 'sim' or 'real'.")
+
 
     # Secondary client interface (30002), NOT realtime (30003): pushing a
     # `def my_program() ... end` program to 30003 makes the CB2/SW1.8 controller
@@ -123,8 +134,18 @@ def main():
         # pyForceDAQ/record_cone_press.py (the CSV strip column stays 0-based).
         ur_script_lines.append(
             f'  textmsg("pose {i + 1} strip {strip + 1} point {point_in_strip}")')
-        # Transit in joint space to the precomputed approach configuration.
-        ur_script_lines.append(f"  movej([{pose_str(q)}], a={A}, v={V})")
+        if point_in_strip == 1:
+            # First point of a strip: big swing from the start pose, so transit
+            # in joint space to the precomputed configuration (Cartesian IK
+            # from one fixed seed can't handle poses all around the cone).
+            ur_script_lines.append(f"  movej([{pose_str(q)}], a={A}, v={V})")
+        else:
+            # Within a strip, consecutive approach points are millimetres
+            # apart and share the same yaw, so transit linearly: movej only
+            # constrains the endpoints and visibly swings the tool orientation
+            # mid-transit (up to ~30 deg measured in sim); movel keeps the
+            # orientation locked the whole way.
+            ur_script_lines.append(f"  movel(p[{pose_str(approach)}], a={A_app}, v={V_app})")
         ur_script_lines.append(f"  sleep({SETTLE})")
         # Press and retract in Cartesian at the slow contact speed so the tool
         # eases onto the cone instead of knocking it away.

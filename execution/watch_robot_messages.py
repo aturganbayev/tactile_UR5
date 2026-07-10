@@ -47,14 +47,16 @@ def iter_packets(sock):
 
 
 def main():
-    mode = input("Select mode ('sim' or 'real'): ").strip().lower()
-    if mode == "sim":
-        host = SIM_HOST
-    elif mode == "real":
-        host = REAL_HOST
-    else:
-        print("Invalid mode. Exiting.")
-        return
+    while True:
+        mode = input("Select mode ('sim' or 'real'): ").strip().lower()
+        if mode == "sim":
+            host = SIM_HOST
+            break
+        elif mode == "real":
+            host = REAL_HOST
+            break
+        else:
+            print("Invalid input. Please type 'sim' or 'real'.")
 
     os.makedirs(LOCAL_LOG_ROOT, exist_ok=True)
     local_file = os.path.join(LOCAL_LOG_ROOT, f"{strftime('%Y-%m-%d_%H-%M-%S')}_messages.log")

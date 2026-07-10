@@ -99,6 +99,14 @@ def main():
         # Outward radial direction for this strip's meridian.
         th = np.radians(target)
         e_r = np.cos(th) * u + np.sin(th) * v
+        # Meridian-perpendicular (tangential) direction: the horizontal TCP
+        # axis every non-apex point on this strip naturally converges to.
+        # Passed as normal_to_rotvec's fallback y-axis so the apex point (a
+        # purely axial normal, azimuth otherwise undefined) picks the SAME
+        # frame as its neighbours instead of an azimuth-blind default -
+        # without this, apex-to-next-point needed up to ~165 deg of
+        # unnecessary reorientation (measured in sim, varies by strip azimuth).
+        e_theta = np.cross(e_r, axis)
 
         # Every strip runs top→bottom; the execution script retracts to the
         # apex/start pose between strips, so direction doesn't need to match.
@@ -147,7 +155,7 @@ def main():
                         * (1.0 - height_frac))
 
             approach_p, (rx, ry, rz), press_p, _ = approach_and_press_poses(
-                p, n, approach_distance, press_distance, tilt_deg=tilt_deg
+                p, n, approach_distance, press_distance, tilt_deg=tilt_deg, y_hint=e_theta
             )
 
             all_poses.append({

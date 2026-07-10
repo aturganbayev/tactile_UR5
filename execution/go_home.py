@@ -8,18 +8,21 @@ from pose_utils import pose_str, A_sim, A_real, V_sim, V_real, SIM_HOST, REAL_HO
 
 
 def main():
-    mode = input("Select mode ('sim' or 'real'): ").strip().lower()
-    if mode == "sim":
-        HOST = SIM_HOST
-        A = A_sim
-        V = V_sim
-    elif mode == "real":
-        HOST = REAL_HOST
-        A = A_real
-        V = V_real
-    else:
-        print("Invalid mode. Exiting.")
-        return
+    while True:
+        mode = input("Select mode ('sim' or 'real'): ").strip().lower()
+        if mode == "sim":
+            HOST = SIM_HOST
+            A = A_sim
+            V = V_sim
+            break
+
+        elif mode == "real":
+            HOST = REAL_HOST
+            A = A_real
+            V = V_real
+            break
+        else:
+            print("Invalid input. Please type 'sim' or 'real'.")
 
     PORT = 30003
 
@@ -27,7 +30,6 @@ def main():
     home_pose_line = pose_str(home_pose)
 
     ur_script = f'movej([{home_pose_line}], a={A}, v={V}, t=0, r=0)\n'
-    print(ur_script)
 
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
