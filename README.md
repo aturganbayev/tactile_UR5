@@ -373,7 +373,7 @@ ur5_tactile_data/
 
 ## Video demo
 
-[https://www.youtube.com/watch?v=YsXVEiOJwH0](https://www.youtube.com/watch?v=YsXVEiOJwH0)
+[![Video demo](https://img.youtube.com/vi/YsXVEiOJwH0/maxresdefault.jpg)](https://www.youtube.com/watch?v=YsXVEiOJwH0)
 
 ---
 
