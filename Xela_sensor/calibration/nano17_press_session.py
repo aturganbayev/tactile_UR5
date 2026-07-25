@@ -87,18 +87,25 @@ SENSOR_RATE = 500
 BIAS_SAMPLES = 500
 REVERSE_FZ = "Fz"     # press -> positive Fz, matches pyForceDAQ's convention
 
-STEP_M = 0.0002                 # 0.2 mm/step - conservative vs. a stiffer
-                                 # target than the silicone phantoms
-MAX_APPROACH_STEPS = 40         # give up after 8mm of blind descent (the
+STEP_M = 0.0001                 # 0.1 mm/step - fine enough to land on each
+                                 # low-force checkpoint without the >1.5N
+                                 # per-step overshoot the old 0.2mm step gave
+                                 # near high stiffness
+MAX_APPROACH_STEPS = 80         # give up after 8mm of blind descent (the
                                  # 3mm hover clearance leaves ample margin)
-MAX_TOTAL_STEPS = 100           # absolute cap (20mm), independent of Fmag -
+MAX_TOTAL_STEPS = 200           # absolute cap (20mm), independent of Fmag -
                                  # guards against a stuck/dead force reading
 SETTLE_TIMEOUT_S = 2.0
 SETTLE_SPEED_MS = 0.01          # same threshold as PRESS_HOLD_SPEED_MS
 
+# Per-taxel calibration is only valid at low force: above ~2N this sensor's
+# mechanical cross-talk + the rounded tip's spreading contact make the peak
+# response jump to a neighbour taxel (confirmed in the 2026-07-25 XELA log).
+# So cap at 2N, and keep the safety ceiling just above it - the sensor's cell
+# stress at higher force also risks damage.
 CONTACT_ON_N = 0.2
-CHECKPOINTS_N = [0.5, 1.0, 2.0, 4.0, 6.0, 8.0]
-MAX_SAFE_N = 8.5
+CHECKPOINTS_N = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0]
+MAX_SAFE_N = 3.0
 HOLD_S = 0.6
 HOLD_POLL_HZ = 30
 
@@ -374,12 +381,11 @@ def main():
     if len(args) >= 2:
         taxel_indices = [int(args[1])]
     else:
-        # X-first (column-major): visit all taxels down a column (row varies =
-        # motion along the X axis, the point0->4 direction) before stepping to
-        # the next column (+Y). This keeps consecutive taxels 5mm apart along
-        # X instead of the row-major order's jumps across the grid.
-        #   order -> [0,4,8,12, 1,5,9,13, 2,6,10,14, 3,7,11,15]
-        taxel_indices = [4 * row + col for col in range(4) for row in range(4)]
+        # Plain 0..15. With the corrected taxel_geometry axes (col = -X,
+        # row = +Y), this already iterates X-first - taxels 0,1,2,3 run down
+        # the -X column, then 4,5,6,7 the next column at +Y, etc. - AND the
+        # index matches the XELA taxel that responds, so no relabelling needed.
+        taxel_indices = list(range(16))
     run_full_session(session_label, taxel_indices)
 
 

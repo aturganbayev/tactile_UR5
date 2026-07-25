@@ -4,19 +4,25 @@ from touch-probing (see conversation notes / memory) rather than nominal
 datasheet dimensions - those were shown to be unreliable (the first point-0
 touch attempt wasn't actually touching the sensor).
 
-Layout (2019 hardware manual, Fig. 1 - confirmed against measured directions):
-    row 0 (point 0's row): [ 3  2  1  0]   (cable side, taxel 0 rightmost)
-    row 1:                 [ 7  6  5  4]
-    row 2:                 [11 10  9  8]
-    row 3:                 [15 14 13 12]
-    taxel_index = 4*row + col   (col 0 = point 0's column)
+Layout:
+    taxel_index = 4*row + col
+    col (the +1 index direction, 0->1->2->3 within a row) runs along -X
+    row (the +4 index direction, 0->4->8->12) runs along +Y
+
+Axis mapping CONFIRMED against XELA response data (2026-07-25): with the
+indenter pressed at each grid position and the XELA taxel that lights up
+recorded at low force, the -X neighbour of taxel 0 responds as XELA taxel 1
+(NOT 4), the next -X step as taxel 2, and the +Y neighbour as taxel 4. An
+earlier guess had row/col swapped (-X=+4, +Y=+1); the sensor data overrides
+it. This makes plain range(16) iterate X-first (taxels 0-3 run down -X) and
+label sequentially, matching the XELA data order.
 
 Measured (base frame, robot):
     point 0 raw EE pose (mm, rad)  = POINT0_EE_POSE_MM - empirically confirmed
         to sit only ~0.1-0.15mm above true contact (force appears around
         z=131.35-131.4 vs. this pose's z=131.5).
-    row step (0 -> 4, i.e. +1 row) = -X, 5 mm
-    col step (0 -> 1, i.e. +1 col) = +Y, 5 mm
+    col step (0 -> 1, i.e. +1 col) = -X, 5 mm   (confirmed via XELA response)
+    row step (0 -> 4, i.e. +1 row) = +Y, 5 mm
 
 Note: this works entirely in raw TCP-pose space, not surface-contact space.
 The sensor tip offset (pose_utils.TOOL_TIP_OFFSET, used for the cone presses)
@@ -49,8 +55,9 @@ POINT0_EE_POSE_MM = np.array(
     [-2.039, -531.009, 131.5, -2.200144, 2.199824, -0.000074])
 
 PITCH_M = 0.005          # 5 mm between adjacent taxel centers, both axes
-ROW_AXIS = np.array([-1.0, 0.0, 0.0])   # base-frame direction of +1 row (0->4)
-COL_AXIS = np.array([0.0, 1.0, 0.0])    # base-frame direction of +1 col (0->1)
+# Confirmed against XELA response data (see module docstring):
+ROW_AXIS = np.array([0.0, 1.0, 0.0])    # +Y -> taxel index +4 (next row, 0->4)
+COL_AXIS = np.array([-1.0, 0.0, 0.0])   # -X -> taxel index +1 (next col, 0->1)
 
 HOVER_CLEARANCE_M = 0.003   # safe non-contact standoff above each taxel
 
