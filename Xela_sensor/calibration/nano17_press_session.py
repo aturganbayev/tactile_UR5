@@ -120,6 +120,7 @@ def send_movel(host, pose, a=A_approach_real, v=V_approach_real):
     s.settimeout(5.0)
     s.connect((host, 30002))
     s.sendall(ur_script.encode("ascii"))
+    time.sleep(1)
     s.close()
 
 
