@@ -47,6 +47,36 @@ source cad_env/bin/activate
 system driver, and `atidaq.so` built from `pyForceDAQ/atidaq_cdll/`. See the
 [Force + pose data collection](#force--pose-data-collection-pyforcedaq) section.
 
+### Starting URSim (simulation)
+
+The simulation IP (`172.17.0.2`, `SIM_HOST` in `pose_utils.py`) is the Docker
+container's own bridge-network IP, not a host port — so it only matches if
+this is the **first** container started on the default bridge network. Start
+it, then power it on and release the brakes (also doable through the
+PolyScope GUI at `http://localhost:6080/vnc.html`, no VNC client needed):
+
+```bash
+docker run --rm -d -p 5900:5900 -p 6080:6080 --name ursim universalrobots/ursim_e-series:latest
+
+# Power on + release brakes via the dashboard server (or click through the
+# same steps in the noVNC viewer above):
+python3 - <<'EOF'
+import socket, time
+s = socket.create_connection(("172.17.0.2", 29999), timeout=5)
+s.recv(4096)
+s.sendall(b"power on\n"); time.sleep(3); print(s.recv(4096))
+s.sendall(b"brake release\n"); time.sleep(3); print(s.recv(4096))
+EOF
+```
+
+If another container already holds `172.17.0.2` (check with
+`docker inspect -f '{{json .NetworkSettings.Networks.bridge.IPAddress}}' <name>`
+for each container in `docker ps`), start this one on different host ports
+(e.g. `-p 5901:5900 -p 6081:6080`) — the internal control ports (30001-30004,
+29999) aren't published to the host at all, only reachable via the
+container's own bridge IP, so host-port conflicts don't affect the robot
+scripts, only the VNC viewer.
+
 ---
 
 ## Project structure
@@ -68,7 +98,9 @@ tactile_UR5/
 ├── pyForceDAQ/            # force + pose recording (ATI Nano17) and press-data analysis
 │   └── cone_data/         # sync_cone_data.sh landing spot (gitignored)
 ├── ur5_tactile_data/      # per-egg recordings + analysis batch scripts (see below)
-├── data/                  # cone.STL + generated pose CSVs
+├── Xela_sensor/           # second, independent sensor approach (see below) - XELA uSkin tactile skin
+│   └── calibration/       # per-taxel force calibration pipeline (new, separate from pyForceDAQ)
+├── data/                  # cone.STL + generated pose CSVs + fixture/mount CAD files
 └── figures/               # plot outputs from the CAD/pose pipeline (steps 1-6)
 ```
 
@@ -213,6 +245,15 @@ To move directly to the start pose only (skipping the pre-pose joint move):
 
 ```bash
 python execution/start_pose.py
+```
+
+To move to *only* the pre-pose joint configuration (skipping the movel to the
+cone's start pose entirely) — e.g. as a safe, cone-independent waypoint
+before positioning the robot for other work (such as the XELA calibration
+rig, see below):
+
+```bash
+python execution/go_pre_pose.py
 ```
 
 ---
@@ -371,6 +412,112 @@ ur5_tactile_data/
 
 ---
 
+## XELA tactile skin (separate approach)
+
+A second, independent sensing approach alongside the cone/Nano17 pipeline above: a XELA Robotics uSkin tactile sensor mounted flat on the platform (in place of a phantom), force-calibrated against the **same UR5 + Nano17 rig** used for the cone presses. Kept fully separate by design — every script here is new; nothing in `pyForceDAQ/` is modified.
+
+```
+Xela_sensor/
+├── xela_server, xela_viz, xela_log, xela_conf   # XELA's own compiled binaries (v1.7.8b)
+├── xServ.ini              # sensor config (working config below)
+├── xServ_sim_backup.ini   # original simulation-mode config, kept as a backup
+└── calibration/
+    ├── taxel_geometry.py         # touch-probed 4x4 taxel grid (measured reference point + pitch)
+    ├── nano17_press_session.py   # DAQ PC: closed-loop per-taxel press automation
+    ├── xela_session_logger.py    # this workstation: continuous raw XELA data logger
+    ├── sim_taxel_grid_dryrun.py  # sim-only motion check (no force/DAQ involved)
+    └── data/                     # session recordings land here
+```
+
+### Hardware / software
+
+| Component | Details |
+|---|---|
+| Sensor | XELA Robotics uSkin, model **XR1944** (16 taxels, 2-channel, 2019-era controller), microcontroller ID **3** |
+| Interface | ESD CAN-USB/2, socketcan (`can0`), 1 Mbit/s |
+| Server | XELA's own `xela_server` binary (v1.7.8b), broadcasts JSON over WebSocket (`ws://<ip>:5000`) |
+| Data | Raw, **uncalibrated** 16-bit X/Y/Z counts per taxel — this sensor generation has no native force calibration in XELA's own software (only uSPa22/44/46 do), hence the calibration pipeline below |
+
+### Bringing the sensor up
+
+```bash
+sudo ip link set up can0 type can bitrate 1000000   # once per boot/replug (or via the udev rule below)
+cd Xela_sensor
+./xela_server -f xServ.ini --ip 0.0.0.0              # --ip 0.0.0.0 required: this build binds the LAN IP by default
+cansend can0 203#07.00                                # manual start trigger - this old-protocol sensor doesn't auto-stream
+./xela_viz -f xServ.ini                               # optional live visualisation
+```
+
+Stop the stream with `cansend can0 203#07.01`. The current `xServ.ini`
+(`bustype = socketcan`, `channel = can0`, `model = XR1944`, `version = 1`,
+`id = 3`) reflects several non-obvious fixes: `version = 1` is required for
+this old CAN-ID layout (the newer default, `version = 3`, silently maps zero
+taxels), and `--ip 0.0.0.0` is needed because this build otherwise binds only
+the machine's LAN IP, leaving `xela_viz`/localhost clients with no data.
+
+Optional: a udev rule brings `can0` up automatically whenever the adapter is
+plugged in, instead of running the `ip link` command by hand each time
+(`/etc/udev/rules.d/60-xela-can.rules`):
+```
+SUBSYSTEM=="net", ACTION=="add", KERNEL=="can*", RUN+="/usr/sbin/ip link set $env{INTERFACE} up type can bitrate 1000000"
+```
+
+### Per-taxel force calibration
+
+Since the XR1944 outputs raw magnetometer counts only, force calibration is
+done manually: cross-pressing the XELA skin with the Nano17 (already mounted
+on the UR5 end-effector for the cone presses) at each of the 16 taxel
+locations, over a range of known forces, to fit a counts→Newtons model per
+taxel. For this the sensor sits on the breadboard mount
+(`data/xela_sensor_breadboard_mount.STL`) and is pressed with the sharper
+indenter tip (`data/tip_touch_li_0.7.STL`) for better single-taxel isolation
+— a broad tip lights up 6-8 neighbouring taxels at once, blurring the
+per-taxel signal.
+
+**Split across two machines, synced by timestamp** — the Nano17 only works on
+the DAQ PC (NI-DAQmx driver + hardware), the CAN-USB adapter only on this
+workstation:
+
+```bash
+# This workstation, one terminal (after bringing the XELA server up as above):
+python3 Xela_sensor/calibration/xela_session_logger.py <label>
+
+# DAQ PC, another terminal:
+python3 Xela_sensor/calibration/nano17_press_session.py <label> [taxel_index]
+```
+
+`nano17_press_session.py` automatically visits all 16 taxel positions (from
+`taxel_geometry.py` — one touch-probed reference pose plus a measured 5mm
+pitch grid, confirmed against the sensor's documented layout), and at each
+one steps the robot down in 0.2mm increments, holding at six force
+checkpoints (`0.5, 1, 2, 4, 6, 8` N) while logging the Nano17 ground truth.
+Safety limits apply throughout: a hard force ceiling well under this sensor
+generation's 10N limit, an absolute travel cap independent of the force
+reading (guards against a stuck/dead sensor value), and a per-taxel
+contact-detection timeout — one taxel aborting doesn't stop the sweep. Pass a
+single `taxel_index` (0-15) to sanity-check one taxel before the full sweep.
+
+`xela_session_logger.py` just logs every raw WebSocket message with a
+wall-clock timestamp; the two machines' logs are reconciled afterward using
+the Nano17 session's checkpoint hold-time windows to look up the matching
+XELA readings.
+
+**Dry-run in sim first**, same convention as the cone pipeline:
+`sim_taxel_grid_dryrun.py` visits every taxel's hover pose in URSim with no
+force/DAQ logic at all, to confirm the grid geometry is reachable and safe
+before ever running for real.
+
+```bash
+python3 Xela_sensor/calibration/sim_taxel_grid_dryrun.py [taxel_index] [pause_seconds]
+```
+
+**Status:** the press/logging pipeline above is built and verified (sim
+motion confirmed reachable; single-taxel real runs not yet done at time of
+writing). The fitting step that turns `(taxel, force level, Nano17 N, XELA
+counts)` rows into a per-taxel counts→Newtons model is not yet built.
+
+---
+
 ## Video demo
 
 [![Video demo](https://img.youtube.com/vi/YsXVEiOJwH0/maxresdefault.jpg)](https://www.youtube.com/watch?v=YsXVEiOJwH0)
@@ -467,7 +614,10 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `paths.py` | Central path config — absolute locations of all data files; imported by every script |
 | `pose_utils.py` | Geometry helpers (TCP↔contact conversion, normal→rotation vector, orientation tilt), **UR5 forward/inverse kinematics** (`ur5_fk`, `ur5_ik_near`) used for offline IK, and shared motion parameters (speeds, distances, tilt limits) |
 | `data/cone.STL` | CAD model of the silicone cone tool |
-| `data/egg_holder_3_revolvehole.SLDPRT` | SolidWorks part file for the egg holder fixture |
+| `data/egg_holder_4_revolvehole-3mm.SLDPRT` / `.STL` | SolidWorks part + STL export for the egg holder fixture (current revision; ~95×86×95mm bounding box) |
+| `data/xela_sensor_mounted.SLDPRT` / `.STL` | SolidWorks part + STL export of the mount attaching the XELA sensor to the **UR5 end-effector** (~99.5×59×80.7mm bounding box) |
+| `data/xela_sensor_breadboard_mount.SLDPRT` / `.STL` | Mount attaching the XELA sensor to the **optical breadboard/platform** (~70×59×70mm bounding box) — this is the fixed placement used for [per-taxel force calibration](#xela-tactile-skin-separate-approach) against the Nano17 (renamed from `xela_sensor_mounted_copy` for clarity) |
+| `data/tip_touch_li_0.7.SLDPRT` / `.STL` | Sharper indenter tip (~21×34×21mm bounding box), for better per-taxel isolation during calibration presses than the standard cone-press tip |
 | `geometry/extract_points.py` | Sample surface points and normals from STL |
 | `cone_plots/cone_plot.py` | Visualise sampled surface point cloud |
 | `cone_plots/cone_plot_normals.py` | Visualise surface points with corrected outward normals |
@@ -482,6 +632,7 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `execution/streaming/mediamtx.yml` | mediamtx configuration (RTSP/HLS/WebRTC bound to Tailscale IP) |
 | `execution/home_start.py` | Move robot through pre-pose to start pose |
 | `execution/start_pose.py` | Move robot directly to start pose |
+| `execution/go_pre_pose.py` | Move robot to the pre-pose joint configuration only (cone-independent waypoint) |
 | `execution/go_home.py` | Return robot to home configuration |
 | `execution/print_tcp_pose.py` | Print the real robot's current TCP pose (one line: `x y z` mm + `rx ry rz` rad) |
 | `execution/move_to_pose.py` | Move the real robot's TCP to an input pose (same format; confirms, then slow linear move) |
@@ -493,6 +644,13 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `pyForceDAQ/sync_cone_data.sh` | Copy recordings from the remote DAQ PC (sshfs mount) into `pyForceDAQ/cone_data/` |
 | `pyForceDAQ/calibration/` | ATI sensor calibration files (`FT12876` = Nano17, `FT12877`) |
 | `ur5_tactile_data/plot_cone_data_batch.py` | Batch-run `plot_cone_data.py`'s plots over every egg folder here; skips recordings whose plots are already up to date |
+| `Xela_sensor/xServ.ini` | XELA server config for this sensor (`socketcan`/`can0`, model `XR1944`, `version = 1`, `id = 3`) |
+| `Xela_sensor/xServ_sim_backup.ini` | Original simulation-mode config, kept as a backup |
+| `Xela_sensor/calibration/taxel_geometry.py` | Hardcoded 16-taxel grid (touch-probed reference point + measured 5mm pitch); exposes `taxel_hover_pose(index)` |
+| `Xela_sensor/calibration/nano17_press_session.py` | DAQ PC: closed-loop per-taxel press automation — visits all 16 taxels, holds at 6 force checkpoints, logs Nano17 ground truth |
+| `Xela_sensor/calibration/xela_session_logger.py` | This workstation: continuous raw XELA WebSocket logger, timestamped for later alignment with the Nano17 session |
+| `Xela_sensor/calibration/sim_taxel_grid_dryrun.py` | Sim-only motion check — visits every taxel's hover pose in URSim, no force/DAQ logic |
+| `Xela_sensor/calibration/data/` | Session recordings (trajectory/checkpoint/XELA CSVs) land here |
 | `data/surface_points.csv` | Raw STL surface points (mm, STL frame) |
 | `ur_calibration/surface_points_base.csv` | Surface points in robot base frame (m) |
 | `ur_calibration/physical_points.csv` | Recorded physical touch points from teach pendant |

@@ -88,7 +88,7 @@ def tilt_normal_toward_vertical(normal, tilt_deg):
 
 
 # Robot IP addresses for Sim and Real PC
-SIM_HOST = "172.17.0.2"
+SIM_HOST = "172.17.0.3"
 REAL_HOST = "192.168.0.110"
 
 # Velocity and Acceleration for Sim and Real Robot.
