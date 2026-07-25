@@ -72,8 +72,7 @@ from pose_utils import REAL_HOST, A_approach_real, V_approach_real, pose_str
 from forceDAQ.force.data_recorder import DataRecorder
 from forceDAQ.force.sensor import SensorSettings
 from record_cone_press import RobotPoseReader, ROBOT_PORT  # reused, not modified
-from taxel_geometry import (taxel_hover_pose, taxel_tcp_position,
-                            HOVER_CLEARANCE_M)
+from taxel_geometry import taxel_hover_pose, HOVER_CLEARANCE_M
 
 DATA_DIR = os.path.join(_THIS_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -88,21 +87,19 @@ SENSOR_RATE = 500
 BIAS_SAMPLES = 500
 REVERSE_FZ = "Fz"     # press -> positive Fz, matches pyForceDAQ's convention
 
-APPROACH_STEP_M = 0.0005        # 0.5 mm/step during the FREE-SPACE descent to
-                                 # first contact - the fine step below is only
-                                 # needed once in contact, so covering the air
-                                 # gap coarsely keeps the approach fast
-FINE_ZONE_M = 0.0006            # switch from coarse to fine steps once the TCP
-                                 # is within this distance of the expected
-                                 # contact height, so the contact-crossing step
-                                 # is gentle and the low-force checkpoints
-                                 # (0.25/0.5N) aren't skipped by an overshoot
+APPROACH_STEP_M = 0.0003        # 0.3 mm/step for the whole descent to first
+                                 # contact - uniform (no position-based fine
+                                 # zone: the sensor plane is slightly tilted so
+                                 # a single measured contact height can't be
+                                 # trusted per-taxel). Small enough for a gentle
+                                 # contact, big enough to keep the descent quick.
 STEP_M = 0.0001                 # 0.1 mm/step IN CONTACT - fine enough to land
                                  # on each low-force checkpoint without the
                                  # >1.5N per-step overshoot a coarse step gives
-MAX_APPROACH_STEPS = 20         # give up after 10mm of blind descent (the
-                                 # ~1.5mm hover clearance leaves ample margin);
-                                 # protects the sensor if a taxel isn't reached
+MAX_APPROACH_STEPS = 30         # descend up to ~9mm before giving up - enough
+                                 # to reach contact across the tilted plane even
+                                 # where a taxel sits several mm lower than the
+                                 # measured reference point
 MAX_TOTAL_STEPS = 120           # absolute cap on in-contact fine steps (12mm),
                                  # independent of Fmag - guards against a
                                  # stuck/dead force reading
@@ -114,7 +111,7 @@ SETTLE_SPEED_MS = 0.01          # same threshold as PRESS_HOLD_SPEED_MS
 # response jump to a neighbour taxel (confirmed in the 2026-07-25 XELA log).
 # So cap at 2N, and keep the safety ceiling just above it - the sensor's cell
 # stress at higher force also risks damage.
-CONTACT_ON_N = 0.2
+CONTACT_ON_N = 0.15
 CHECKPOINTS_N = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0]
 MAX_SAFE_N = 3.0
 HOLD_S = 0.6
@@ -202,9 +199,6 @@ def press_one_taxel(taxel_index, reader, proc, traj_rows, cp_rows):
     its hover pose before returning. Returns True if it aborted early."""
 
     hover_pose = taxel_hover_pose(taxel_index)
-    # Expected contact height (base-frame TCP z at the measured taxel point).
-    # Used to switch coarse->fine steps just above contact.
-    contact_z = taxel_tcp_position(taxel_index)[0][2]
     print(f"\n=== Taxel {taxel_index:2d}: moving to hover pose ===")
     move_to_pose(reader, REAL_HOST, hover_pose)
 
@@ -224,15 +218,13 @@ def press_one_taxel(taxel_index, reader, proc, traj_rows, cp_rows):
         return fx, fy, fz, fmag
 
     try:
-        # --- approach phase: coarse in free space, fine near contact ---
+        # --- approach phase: uniform descent until first contact ---
         for _ in range(MAX_APPROACH_STEPS):
             fx, fy, fz, fmag = log_traj()
             if fmag >= CONTACT_ON_N:
                 contacted = True
                 break
-            cur_z = reader.latest()[0][2]
-            step = APPROACH_STEP_M if cur_z > contact_z + FINE_ZONE_M else STEP_M
-            step_along_tool_z(reader, REAL_HOST, step)
+            step_along_tool_z(reader, REAL_HOST, APPROACH_STEP_M)
 
         if not contacted:
             print(f"  [abort] Taxel {taxel_index}: no contact within "
