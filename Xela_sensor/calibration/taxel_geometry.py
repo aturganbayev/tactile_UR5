@@ -59,7 +59,9 @@ PITCH_M = 0.005          # 5 mm between adjacent taxel centers, both axes
 ROW_AXIS = np.array([0.0, 1.0, 0.0])    # +Y -> taxel index +4 (next row, 0->4)
 COL_AXIS = np.array([-1.0, 0.0, 0.0])   # -X -> taxel index +1 (next col, 0->1)
 
-HOVER_CLEARANCE_M = 0.003   # safe non-contact standoff above each taxel
+HOVER_CLEARANCE_M = 0.0015  # safe non-contact standoff above each taxel -
+                             # kept small so the descent to contact is short
+                             # (the sensor is flat and point0 is well measured)
 
 
 def taxel_row_col(index):

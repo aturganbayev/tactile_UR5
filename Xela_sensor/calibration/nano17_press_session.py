@@ -72,7 +72,8 @@ from pose_utils import REAL_HOST, A_approach_real, V_approach_real, pose_str
 from forceDAQ.force.data_recorder import DataRecorder
 from forceDAQ.force.sensor import SensorSettings
 from record_cone_press import RobotPoseReader, ROBOT_PORT  # reused, not modified
-from taxel_geometry import taxel_hover_pose, HOVER_CLEARANCE_M
+from taxel_geometry import (taxel_hover_pose, taxel_tcp_position,
+                            HOVER_CLEARANCE_M)
 
 DATA_DIR = os.path.join(_THIS_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -87,14 +88,24 @@ SENSOR_RATE = 500
 BIAS_SAMPLES = 500
 REVERSE_FZ = "Fz"     # press -> positive Fz, matches pyForceDAQ's convention
 
-STEP_M = 0.0001                 # 0.1 mm/step - fine enough to land on each
-                                 # low-force checkpoint without the >1.5N
-                                 # per-step overshoot the old 0.2mm step gave
-                                 # near high stiffness
-MAX_APPROACH_STEPS = 80         # give up after 8mm of blind descent (the
-                                 # 3mm hover clearance leaves ample margin)
-MAX_TOTAL_STEPS = 200           # absolute cap (20mm), independent of Fmag -
-                                 # guards against a stuck/dead force reading
+APPROACH_STEP_M = 0.0005        # 0.5 mm/step during the FREE-SPACE descent to
+                                 # first contact - the fine step below is only
+                                 # needed once in contact, so covering the air
+                                 # gap coarsely keeps the approach fast
+FINE_ZONE_M = 0.0006            # switch from coarse to fine steps once the TCP
+                                 # is within this distance of the expected
+                                 # contact height, so the contact-crossing step
+                                 # is gentle and the low-force checkpoints
+                                 # (0.25/0.5N) aren't skipped by an overshoot
+STEP_M = 0.0001                 # 0.1 mm/step IN CONTACT - fine enough to land
+                                 # on each low-force checkpoint without the
+                                 # >1.5N per-step overshoot a coarse step gives
+MAX_APPROACH_STEPS = 20         # give up after 10mm of blind descent (the
+                                 # ~1.5mm hover clearance leaves ample margin);
+                                 # protects the sensor if a taxel isn't reached
+MAX_TOTAL_STEPS = 120           # absolute cap on in-contact fine steps (12mm),
+                                 # independent of Fmag - guards against a
+                                 # stuck/dead force reading
 SETTLE_TIMEOUT_S = 2.0
 SETTLE_SPEED_MS = 0.01          # same threshold as PRESS_HOLD_SPEED_MS
 
@@ -131,35 +142,26 @@ def send_movel(host, pose, a=A_approach_real, v=V_approach_real):
     s.settimeout(5.0)
     s.connect((host, 30002))
     s.sendall(ur_script.encode("ascii"))
-    time.sleep(1)
+    # Give the CB2 controller time to latch + start the program before the
+    # socket closes (an immediate close silently drops it). These steps are
+    # tiny (<0.5mm, ~<100ms of motion), so 0.5s is ample and keeps the
+    # per-step loop fast. Bump back toward 1s if a step is ever dropped.
+    time.sleep(0.5)
     s.close()
 
 
 def wait_until_settled(reader, timeout=SETTLE_TIMEOUT_S,
-                        speed_threshold=SETTLE_SPEED_MS,
-                        move_start_timeout=1.0):
-    """Wait for a commanded move to complete.
+                        speed_threshold=SETTLE_SPEED_MS):
+    """Confirm the robot is stopped after a commanded step.
 
-    A fresh connection + program parse on the CB2 controller means the robot
-    does not start moving the instant send_movel() returns. Polling speed
-    immediately would read ~0 (motion not begun yet) and wrongly report
-    "settled", letting the caller fire the next move before this one runs. So
-    first wait for motion to actually BEGIN (speed rises above threshold),
-    then wait for it to settle back down. If motion never begins within
-    move_start_timeout (e.g. a sub-mm step whose brief motion is missed
-    between polls, or the robot ignored the program), fall back rather than
-    hang.
+    send_movel() already sleeps long enough for these small (<=0.5mm) moves to
+    finish - they complete in well under 100ms. Do NOT try to detect motion
+    'starting' here: a 0.1mm step peaks at ~4.5 mm/s, below SETTLE_SPEED_MS,
+    so it would never be seen as moving and would waste the whole timeout on
+    every step. Just verify we're stopped and return.
     """
     t0 = time.time()
-    started = False
-    while time.time() - t0 < move_start_timeout:
-        _, speed = reader.latest()
-        if speed > speed_threshold:
-            started = True
-            break
-        time.sleep(0.01)
-    if not started:
-        return False
+    time.sleep(0.05)
     while True:
         _, speed = reader.latest()
         if speed <= speed_threshold:
@@ -200,6 +202,9 @@ def press_one_taxel(taxel_index, reader, proc, traj_rows, cp_rows):
     its hover pose before returning. Returns True if it aborted early."""
 
     hover_pose = taxel_hover_pose(taxel_index)
+    # Expected contact height (base-frame TCP z at the measured taxel point).
+    # Used to switch coarse->fine steps just above contact.
+    contact_z = taxel_tcp_position(taxel_index)[0][2]
     print(f"\n=== Taxel {taxel_index:2d}: moving to hover pose ===")
     move_to_pose(reader, REAL_HOST, hover_pose)
 
@@ -219,14 +224,15 @@ def press_one_taxel(taxel_index, reader, proc, traj_rows, cp_rows):
         return fx, fy, fz, fmag
 
     try:
-        # --- approach phase: descend until first contact ---
+        # --- approach phase: coarse in free space, fine near contact ---
         for _ in range(MAX_APPROACH_STEPS):
             fx, fy, fz, fmag = log_traj()
             if fmag >= CONTACT_ON_N:
                 contacted = True
                 break
-            step_along_tool_z(reader, REAL_HOST, STEP_M)
-            total_steps += 1
+            cur_z = reader.latest()[0][2]
+            step = APPROACH_STEP_M if cur_z > contact_z + FINE_ZONE_M else STEP_M
+            step_along_tool_z(reader, REAL_HOST, step)
 
         if not contacted:
             print(f"  [abort] Taxel {taxel_index}: no contact within "
