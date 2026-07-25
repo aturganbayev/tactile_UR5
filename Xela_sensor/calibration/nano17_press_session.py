@@ -125,9 +125,30 @@ def send_movel(host, pose, a=A_approach_real, v=V_approach_real):
 
 
 def wait_until_settled(reader, timeout=SETTLE_TIMEOUT_S,
-                        speed_threshold=SETTLE_SPEED_MS):
+                        speed_threshold=SETTLE_SPEED_MS,
+                        move_start_timeout=1.0):
+    """Wait for a commanded move to complete.
+
+    A fresh connection + program parse on the CB2 controller means the robot
+    does not start moving the instant send_movel() returns. Polling speed
+    immediately would read ~0 (motion not begun yet) and wrongly report
+    "settled", letting the caller fire the next move before this one runs. So
+    first wait for motion to actually BEGIN (speed rises above threshold),
+    then wait for it to settle back down. If motion never begins within
+    move_start_timeout (e.g. a sub-mm step whose brief motion is missed
+    between polls, or the robot ignored the program), fall back rather than
+    hang.
+    """
     t0 = time.time()
-    time.sleep(0.05)
+    started = False
+    while time.time() - t0 < move_start_timeout:
+        _, speed = reader.latest()
+        if speed > speed_threshold:
+            started = True
+            break
+        time.sleep(0.01)
+    if not started:
+        return False
     while True:
         _, speed = reader.latest()
         if speed <= speed_threshold:
