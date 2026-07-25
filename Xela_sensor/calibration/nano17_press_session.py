@@ -328,6 +328,28 @@ def run_full_session(session_label, taxel_indices):
     aborted_taxels = []
     session_t0 = time.time()
 
+    def save_csvs():
+        # Written from the finally block so a Ctrl-C mid-run (e.g. you spot
+        # the tool misbehaving and abort) still saves everything collected so
+        # far, instead of losing the whole run.
+        with open(traj_path, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["t", "taxel", "Fx", "Fy", "Fz",
+                                              "Fmag", "speed", "x", "y", "z"])
+            w.writeheader()
+            w.writerows(traj_rows)
+        print(f"\nSaved trajectory ({len(traj_rows)} rows) -> {traj_path}")
+        if cp_rows:
+            with open(cp_path, "w", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=["taxel", "target_N",
+                                                  "t_hold_start", "t_hold_end",
+                                                  "n_samples", "Fx", "Fy", "Fz",
+                                                  "Fmag"])
+                w.writeheader()
+                w.writerows(cp_rows)
+            print(f"Saved {len(cp_rows)} checkpoint row(s) -> {cp_path}")
+        else:
+            print("No checkpoints reached this run.")
+
     try:
         for idx in taxel_indices:
             aborted = press_one_taxel(idx, reader, proc, traj_rows, cp_rows)
@@ -336,25 +358,7 @@ def run_full_session(session_label, taxel_indices):
     finally:
         reader.stop()
         recorder.quit()
-
-    with open(traj_path, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["t", "taxel", "Fx", "Fy", "Fz",
-                                          "Fmag", "speed", "x", "y", "z"])
-        w.writeheader()
-        w.writerows(traj_rows)
-    print(f"\nSaved trajectory ({len(traj_rows)} rows) -> {traj_path}")
-
-    if cp_rows:
-        with open(cp_path, "w", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=["taxel", "target_N",
-                                              "t_hold_start", "t_hold_end",
-                                              "n_samples", "Fx", "Fy", "Fz",
-                                              "Fmag"])
-            w.writeheader()
-            w.writerows(cp_rows)
-        print(f"Saved {len(cp_rows)} checkpoint row(s) -> {cp_path}")
-    else:
-        print("No checkpoints reached this run.")
+        save_csvs()
 
     if aborted_taxels:
         print(f"Taxels with incomplete data (aborted): {aborted_taxels}")
@@ -370,7 +374,12 @@ def main():
     if len(args) >= 2:
         taxel_indices = [int(args[1])]
     else:
-        taxel_indices = list(range(16))
+        # X-first (column-major): visit all taxels down a column (row varies =
+        # motion along the X axis, the point0->4 direction) before stepping to
+        # the next column (+Y). This keeps consecutive taxels 5mm apart along
+        # X instead of the row-major order's jumps across the grid.
+        #   order -> [0,4,8,12, 1,5,9,13, 2,6,10,14, 3,7,11,15]
+        taxel_indices = [4 * row + col for col in range(4) for row in range(4)]
     run_full_session(session_label, taxel_indices)
 
 
