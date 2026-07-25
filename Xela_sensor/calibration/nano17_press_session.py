@@ -111,10 +111,14 @@ TRAJ_LOG_HZ = 60   # continuous trajectory logging rate during each press
 
 def send_movel(host, pose, a=A_approach_real, v=V_approach_real):
     """Fire-and-forget a single movel via the secondary client port (30002)."""
+    # NB: function name has NO leading underscore. The CB2 PolyScope 1.x
+    # URScript parser rejects identifiers like `_step` (silently - the
+    # program just never runs), even though newer e-series URSim accepts
+    # them. Every working script here uses a plain-letter name.
     ur_script = (
-        "def _step():\n"
+        "def press_step():\n"
         f"  movel(p[{pose_str(pose)}], a={a}, v={v})\n"
-        "end\n_step()\n"
+        "end\npress_step()\n"
     )
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(5.0)
