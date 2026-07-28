@@ -93,14 +93,17 @@ APPROACH_STEP_M = 0.0003        # 0.3 mm/step for the whole descent to first
                                  # a single measured contact height can't be
                                  # trusted per-taxel). Small enough for a gentle
                                  # contact, big enough to keep the descent quick.
-STEP_M = 0.0001                 # 0.1 mm/step IN CONTACT - fine enough to land
-                                 # on each low-force checkpoint without the
-                                 # >1.5N per-step overshoot a coarse step gives
+STEP_M = 0.0002                 # 0.2 mm/step IN CONTACT. 0.1mm was too small:
+                                 # against a contact force the UR5 (repeatability
+                                 # +/-0.03mm) often didn't actually move for such
+                                 # a tiny commanded increment, so force never
+                                 # built. 0.2mm is the step the smooth 8N run
+                                 # (133348) used and reliably executes.
 MAX_APPROACH_STEPS = 30         # descend up to ~9mm before giving up - enough
                                  # to reach contact across the tilted plane even
                                  # where a taxel sits several mm lower than the
                                  # measured reference point
-MAX_TOTAL_STEPS = 120           # absolute cap on in-contact fine steps (12mm),
+MAX_TOTAL_STEPS = 60            # absolute cap on in-contact steps (~12mm),
                                  # independent of Fmag - guards against a
                                  # stuck/dead force reading
 SETTLE_TIMEOUT_S = 2.0
