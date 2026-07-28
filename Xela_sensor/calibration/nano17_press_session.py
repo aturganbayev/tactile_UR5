@@ -140,10 +140,12 @@ def send_movel(host, pose, a=A_approach_real, v=V_approach_real):
     s.connect((host, 30002))
     s.sendall(ur_script.encode("ascii"))
     # Give the CB2 controller time to latch + start the program before the
-    # socket closes (an immediate close silently drops it). These steps are
-    # tiny (<0.5mm, ~<100ms of motion), so 0.5s is ample and keeps the
-    # per-step loop fast. Bump back toward 1s if a step is ever dropped.
-    time.sleep(0.5)
+    # socket closes. This MUST be ~1s: at 0.5s the real controller silently
+    # drops moves after a few steps and the robot freezes mid-descent (seen
+    # 2026-07-25: runs 142322/143625 froze at ~1mm, while the 1.0s run 133348
+    # pressed smoothly to 8N). The loop is still fast because wait_until_settled
+    # no longer wastes a timeout per step.
+    time.sleep(1.0)
     s.close()
 
 
