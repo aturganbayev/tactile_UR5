@@ -21,7 +21,18 @@ SAFE_LIFT_M = 0.06
 
 
 def main():
+    # Optional alternative pose grid, e.g. the shallower XELA palpation grid
+    # from Xela_sensor/palpation/make_palpation_poses.py. Omitted -> the cone
+    # grid as before, so existing usage is unchanged.
     input_csv = paths.CONE_TOUCH_POSES
+    if "--poses" in sys.argv:
+        input_csv = sys.argv[sys.argv.index("--poses") + 1]
+    # Optional: run only the first N poses. Intended for a cautious first
+    # press with new tooling (e.g. --limit 1) before committing to the full
+    # sweep. Omitted -> all poses, as before.
+    limit = None
+    if "--limit" in sys.argv:
+        limit = int(sys.argv[sys.argv.index("--limit") + 1])
     try:
         poses_df = pd.read_csv(input_csv)
     except FileNotFoundError:
@@ -100,6 +111,10 @@ def main():
     last_approach = None     # most recent retract pose, lifted before returning
     n_unreached = 0
     point_in_strip = 0       # 1-based point number within the current strip
+    if limit is not None:
+        poses_df = poses_df.head(limit)
+        print(f"--limit {limit}: running only the first {len(poses_df)} pose(s).")
+
     for i, (_, row) in enumerate(poses_df.iterrows()):
         approach = [row["approach_x"], row["approach_y"], row["approach_z"],
                     row["approach_rx"], row["approach_ry"], row["approach_rz"]]

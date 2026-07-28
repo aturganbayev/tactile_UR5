@@ -159,12 +159,36 @@ def taxel_row_col(index):
     return divmod(index, 4)   # (row, col)
 
 
+def pad_contact_point(u_m, v_m):
+    """Surface contact point at an ARBITRARY position on the pad (base frame,
+    metres), offset from taxel 0 within the measured tilted plane.
+
+    u_m runs along COL_AXIS (the +1 taxel-index direction) and v_m along
+    ROW_AXIS (the +4 direction), so (u, v) = (col*PITCH, row*PITCH) reproduces
+    taxel_contact_point(). Used by the global force-map calibration, which
+    presses at randomised locations - including BETWEEN taxels - instead of
+    only on the 16 centres.
+    """
+    row_dir, col_dir = _plane_axes()
+    return _taxel0_contact_m() + v_m * row_dir + u_m * col_dir
+
+
+def pad_tcp_position(u_m, v_m):
+    """(TCP position in metres, rotvec) placing the tool tip at pad (u, v)."""
+    return pad_contact_point(u_m, v_m) - _R_PRESS @ TOOL_TIP_OFFSET, PRESS_ROTVEC
+
+
+def pad_hover_pose(u_m, v_m, clearance_m=HOVER_CLEARANCE_M):
+    """TCP pose hovering clearance_m above pad position (u, v)."""
+    xyz, rotvec = pad_tcp_position(u_m, v_m)
+    return np.concatenate([xyz + clearance_m * _unit(SURFACE_NORMAL), rotvec])
+
+
 def taxel_contact_point(index):
     """Surface contact point of a taxel (base frame, metres), stepped from
     taxel 0 within the measured tilted plane."""
     row, col = taxel_row_col(index)
-    row_dir, col_dir = _plane_axes()
-    return _taxel0_contact_m() + row * PITCH_M * row_dir + col * PITCH_M * col_dir
+    return pad_contact_point(col * PITCH_M, row * PITCH_M)
 
 
 def taxel_tcp_position(index):
