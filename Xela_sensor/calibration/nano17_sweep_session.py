@@ -140,13 +140,44 @@ DWELL_S = 1.5                   # hold at peak - captures stress relaxation,
                                 # which is exactly what a palpation hold does
 TRAJ_LOG_HZ = 60
 
-# Randomised press locations are drawn from the taxel-grid footprint: u, v in
-# [0, 3*PITCH] = [0, 15] mm, measured from taxel 0 along COL_AXIS / ROW_AXIS.
-# Deliberately NOT extended past the outer taxels - the pad is 24x28 mm so
-# there is material out there, but pressing near the edge risks loading the
-# frame instead of the skin, which would put unlabelled force into the model.
+# Pre-contact baseline dwell. MEASURED, not guessed: in palpation run
+# 20260728_151651 the summed true-Z counts settle ~35% of the press amplitude
+# BELOW the pre-press level after release, and are still ~15% low a full
+# minute later (median over 33 presses). The pad recovers viscoelastically,
+# slowly, and it UNDERSHOOTS rather than creeping back from above.
+#
+# That is a direct threat to per-press referencing: a baseline taken too soon
+# after the previous press is contaminated by that press's residual, which
+# biases every delta in the press that follows.
+#
+# Waiting it out entirely is impractical (minutes per press, x30). The
+# workable answer is to make the residual CONSTANT instead of small, so it is
+# absorbed by the model's intercept rather than showing up as scatter:
+#   * every press ramps to the same --fmax, so residuals are similar in size;
+#   * this dwell is fixed, so each baseline is sampled at the same point on
+#     the recovery curve;
+#   * press locations are randomised, so any leftover bias is uncorrelated
+#     with position and degrades to noise instead of a spatial artefact.
+# 15 s puts the sample on the flatter part of the curve without adding more
+# than ~8 min to a 30-press session.
+BASELINE_DWELL_S = 15.0
+
+# Randomised press locations, measured from taxel 0 along COL_AXIS / ROW_AXIS.
+#
+# V IS CLIPPED, AND THAT IS A MEASURED CORRECTION. In run test1 the response
+# to a fixed 2 N collapsed in the v = 11-15 mm band (1598-4025 counts) while
+# the v = 0-4 mm band was consistent (6378-7714, CV ~8%); corr(v, response)
+# = -0.53 with no such trend in u. That band is the pad boundary: the indenter
+# loads the FRAME, so the Nano17 registers force the sensing region never
+# sees. Those presses are pure poison for a force model - labelled force with
+# no corresponding signal - so the default window now stops short of it.
+#
+# The exact edge location relative to taxel 0 is not known precisely (this is
+# inferred from response, not from a measurement of the pad outline), hence
+# --vmax to adjust it if you re-probe and find the usable region is larger.
 PAD_MIN_M = 0.0
-PAD_MAX_M = 3 * PITCH_M
+PAD_MAX_M = 3 * PITCH_M          # 15 mm - full taxel-grid footprint, u only
+PAD_V_MAX_M = 0.011              # 11 mm - stop short of the frame-loading band
 
 SHEAR_SLIDE_M = 0.0005          # +/- lateral travel for --shear
 
@@ -248,7 +279,7 @@ def move_to_pose(reader, host, pose, log_fn=None):
 #                             PRESS LOCATIONS                                 #
 # --------------------------------------------------------------------------- #
 
-def sample_locations(n, seed=0):
+def sample_locations(n, seed=0, vmax=PAD_V_MAX_M):
     """n randomised (u, v) pad locations in metres.
 
     Stratified (jittered grid), not uniform-random: with only ~30 presses,
@@ -260,13 +291,32 @@ def sample_locations(n, seed=0):
     side = int(math.ceil(math.sqrt(n)))
     cells = [(i, j) for i in range(side) for j in range(side)]
     rng.shuffle(cells)
-    span = PAD_MAX_M - PAD_MIN_M
+    u_span = PAD_MAX_M - PAD_MIN_M
+    v_span = vmax - PAD_MIN_M
     out = []
     for i, j in cells[:n]:
-        u = PAD_MIN_M + span * (i + rng.uniform(0.15, 0.85)) / side
-        v = PAD_MIN_M + span * (j + rng.uniform(0.15, 0.85)) / side
+        u = PAD_MIN_M + u_span * (i + rng.uniform(0.15, 0.85)) / side
+        v = PAD_MIN_M + v_span * (j + rng.uniform(0.15, 0.85)) / side
         out.append((u, v))
     return out
+
+
+def repeat_locations(n, u_m, v_m):
+    """The SAME location n times - the repeatability test.
+
+    WHY THIS MATTERS MORE THAN MORE COVERAGE RIGHT NOW: in run test1 the
+    response to a fixed 2 N varied 7.8x across the pad, but every press was at
+    a different location, so that spread is unattributable. If pressing one
+    spot repeatedly reproduces the same response, the variation is a real
+    spatial gain field - learnable, but needing far more than 30 locations. If
+    it does NOT reproduce, the variation is noise and no amount of data will
+    produce a usable force model, so the honest ceiling is the ~0.67 N RMS the
+    scalar sum|dZ| model already achieves.
+
+    One cheap run answers which, and that answer decides whether to spend
+    hours more on collection.
+    """
+    return [(u_m, v_m)] * n
 
 
 # --------------------------------------------------------------------------- #
@@ -303,11 +353,12 @@ def press_one_location(press_idx, u_m, v_m, reader, proc, rows, args):
         move_to_pose(reader, REAL_HOST, hover_pose)
 
         # --- pre-contact baseline window -------------------------------- #
-        # The fit references this press's XELA counts to THIS window, which is
-        # what makes the ~1000-count drift harmless: it only has to be stable
-        # for the ~15 s of one press, not the whole session.
+        # The fit references this press's XELA counts to THIS window. The
+        # dwell is long and FIXED so the previous press's viscoelastic
+        # residual is sampled at a repeatable point on its recovery curve -
+        # see the BASELINE_DWELL_S note above for the measurement behind it.
         phase["name"] = "baseline"
-        sleep_logging(1.0, log)
+        sleep_logging(BASELINE_DWELL_S, log)
 
         # --- approach: uniform descent to first contact ------------------ #
         phase["name"] = "approach"
@@ -325,8 +376,19 @@ def press_one_location(press_idx, u_m, v_m, reader, proc, rows, args):
             return "no_contact"
 
         # --- load ramp ---------------------------------------------------- #
+        # Stops on the PREDICTED force after the next step, not the current
+        # one. Measured in run cal1: with a plain `f >= fmax` test the peaks
+        # were 3.73 / 4.77 / 3.56 N against a 3.0 N target, and the 4.77 N
+        # press blew through MAX_SAFE_N and aborted. Near full stiffness a
+        # single 0.2 mm step adds ~1 N, and the step cannot be made smaller -
+        # 0.1 mm often fails to move the arm at all against a contact force.
+        # So overshoot cannot be trimmed by finer steps; the ramp has to stop
+        # one step EARLY instead. Undershooting slightly is harmless (the
+        # ramp is sampled continuously, so the data is there either way).
         phase["name"] = "load"
         steps = 0
+        f_prev = fmag()
+        df_step = 0.0
         while True:
             log()
             f = fmag()
@@ -335,9 +397,10 @@ def press_one_location(press_idx, u_m, v_m, reader, proc, rows, args):
                       f"safety ceiling ({MAX_SAFE_N} N).")
                 abort = "over_force"
                 break
-            if f >= args.fmax:
-                print(f"  press {press_idx}: reached {f:.2f} N in "
-                      f"{steps} steps.")
+            if f >= args.fmax or f + df_step >= args.fmax:
+                print(f"  press {press_idx}: stopped at {f:.2f} N in "
+                      f"{steps} steps (target {args.fmax} N, last step "
+                      f"+{df_step:.2f} N).")
                 break
             if steps >= MAX_TOTAL_STEPS:
                 print(f"  [abort] press {press_idx}: travel cap "
@@ -347,6 +410,9 @@ def press_one_location(press_idx, u_m, v_m, reader, proc, rows, args):
                 break
             step_along_tool_z(reader, REAL_HOST, STEP_M, log_fn=log)
             steps += 1
+            f_now = fmag()
+            df_step = max(0.0, f_now - f_prev)
+            f_prev = f_now
 
         if abort is None:
             # --- dwell at peak -------------------------------------------- #
@@ -402,7 +468,7 @@ def run_session(args):
     from record_cone_press import RobotPoseReader, ROBOT_PORT
 
     out_path = os.path.join(DATA_DIR, f"{args.label}_sweep.csv")
-    locations = sample_locations(args.n, args.seed)
+    locations = plan_locations(args)
 
     print("Setting up Nano17 (DO NOT TOUCH THE SENSOR) ...")
     sensor = SensorSettings(device_id="1",
@@ -468,6 +534,18 @@ def run_session(args):
           f"  python3 Xela_sensor/calibration/fit_force_model.py {args.label}")
 
 
+def plan_locations(args):
+    """The press locations for this session: one spot repeated, or a
+    randomised sweep."""
+    if args.repeat:
+        try:
+            u, v = (float(x) / 1000.0 for x in args.repeat.split(","))
+        except ValueError:
+            raise SystemExit("--repeat wants U,V in mm, e.g. --repeat 7.5,5.0")
+        return repeat_locations(args.n, u, v)
+    return sample_locations(args.n, args.seed, args.vmax / 1000.0)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("label", nargs="?", default=time.strftime("%Y%m%d_%H%M%S"),
@@ -476,6 +554,13 @@ def main():
     ap.add_argument("--fmax", type=float, default=DEFAULT_FMAX_N,
                     help="top of the force ramp, N")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--repeat", metavar="U,V",
+                    help="REPEATABILITY TEST: press this one pad location "
+                         "(mm from taxel 0, e.g. --repeat 7.5,5.0) --n times "
+                         "instead of sampling --n different locations")
+    ap.add_argument("--vmax", type=float, default=PAD_V_MAX_M * 1000,
+                    help="upper v limit for sampling, mm (default %(default)s "
+                         "- stops short of the frame-loading band)")
     ap.add_argument("--shear", action="store_true",
                     help="add lateral slides at depth (labelled Fx/Fy data)")
     ap.add_argument("--dry-run", action="store_true",
@@ -488,9 +573,13 @@ def main():
     if args.dry_run:
         print(f"label={args.label}  n={args.n}  fmax={args.fmax} N  "
               f"shear={args.shear}  seed={args.seed}")
-        print(f"pad sampling window: u,v in "
-              f"[{PAD_MIN_M*1000:.0f}, {PAD_MAX_M*1000:.0f}] mm from taxel 0\n")
-        for i, (u, v) in enumerate(sample_locations(args.n, args.seed)):
+        if args.repeat:
+            print(f"REPEATABILITY TEST: {args.n} presses at one location\n")
+        else:
+            print(f"pad sampling window: u in [{PAD_MIN_M*1000:.0f}, "
+                  f"{PAD_MAX_M*1000:.0f}] mm, v in [{PAD_MIN_M*1000:.0f}, "
+                  f"{args.vmax:.0f}] mm from taxel 0\n")
+        for i, (u, v) in enumerate(plan_locations(args)):
             pose = pad_hover_pose(u, v)
             print(f"  press {i:2d}: u={u*1000:5.2f} v={v*1000:5.2f} mm  "
                   f"hover TCP = [{pose[0]*1000:7.2f}, {pose[1]*1000:7.2f}, "

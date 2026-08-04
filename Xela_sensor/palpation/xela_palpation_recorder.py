@@ -387,9 +387,17 @@ def main():
     traj_path = os.path.join(out_dir, f"{stamp}_trajectory.csv")
     press_path = os.path.join(out_dir, f"{stamp}_presses.csv")
 
-    ch = []
-    for ax in ("x", "y", "z"):
-        ch += [f"{ax}{i}" for i in range(N_TAXELS)]
+    # Interleaved (x0,y0,z0,x1,y1,z1,...) to match the order of `vals` and
+    # `delta`, which are written straight out below.
+    #
+    # BUG FIX 2026-07-28: this was built axis-grouped (x0..x15, y0..y15,
+    # z0..z15) while the values written are interleaved, so every column past
+    # raw_x0 carried the wrong label - raw_x1 actually held taxel 0's Y, and
+    # so on. The symptom was a "high" idle channel that rotated z,y,x,z,y,x...
+    # across taxels in the logged CSVs, even though the live stream has Z high
+    # on all 16. Values were never wrong, only their names; existing logs are
+    # fully recoverable with fix_logged_channel_labels.py.
+    ch = [f"{ax}{i}" for i in range(N_TAXELS) for ax in ("x", "y", "z")]
     traj_fields = (["t", "px", "py", "pz", "rx", "ry", "rz", "speed",
                     "response", "baseline_age_s"]
                    + [f"raw_{c}" for c in ch] + [f"d_{c}" for c in ch])

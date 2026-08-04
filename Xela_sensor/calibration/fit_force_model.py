@@ -261,7 +261,10 @@ def main():
 
     if a.alpha == "auto":
         best, best_err = None, np.inf
-        for alpha in [1e-2, 1e-1, 1, 10, 100, 1000, 1e4]:
+        # Extends to 1e7: on the test1 data the selection pinned at the old
+        # 1e4 ceiling for every feature set, meaning the sweep was truncated
+        # and the reported alpha was an artefact of the grid, not an optimum.
+        for alpha in [1e-2, 1e-1, 1, 10, 100, 1000, 1e4, 1e5, 1e6, 1e7]:
             e = np.sqrt((((grouped_cv(X, Y, groups, alpha)) - Y) ** 2).mean())
             if e < best_err:
                 best, best_err = alpha, e
