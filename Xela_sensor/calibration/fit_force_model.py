@@ -169,6 +169,26 @@ def add_deltas(df):
 
 def build_features(df, kind):
     d = df[["d_" + c for c in CHANNELS]].to_numpy(float)
+    if kind == "scalar":
+        # Total response only - no per-channel weights, no location.
+        #
+        # This is the model to deploy, and that is an empirical result, not a
+        # simplification for its own sake. Measured on test1 + rep1:
+        #   * over the whole pad, response at a fixed 2 N varies 7.8x with
+        #     location, so any location-invariant model is capped around
+        #     0.66 N RMS - and the learning curve from 6 to 21 presses is
+        #     FLAT, so more presses do not lift that cap;
+        #   * handing the model location explicitly (contact centroid, and
+        #     centroid-modulated gain) did not beat plain total response;
+        #   * but at ONE location, this same scalar reaches 0.148 N RMS
+        #     (R2 0.973), 4.5x better.
+        # The gain field is real and repeatable (CV ~6% at a fixed spot vs
+        # 46% across the pad) - it just is not learnable from the sparse
+        # pattern a small rigid indenter produces. So calibrate for the
+        # contact geometry you will actually use rather than trying to be
+        # location-invariant.
+        tot = np.abs(d).sum(axis=1, keepdims=True)
+        return np.hstack([tot, np.sqrt(tot)]), ["sum_abs_d", "sqrt_sum_abs_d"]
     if kind == "linear":
         return d, [f"d_{c}" for c in CHANNELS]
     if kind == "sqrt":
@@ -232,12 +252,17 @@ def report(name, Y, P):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("label")
-    ap.add_argument("--features", default="sqrt",
-                    choices=["linear", "sqrt", "quad"])
+    ap.add_argument("--features", default="scalar",
+                    choices=["scalar", "linear", "sqrt", "quad"],
+                    help="'scalar' (default) is the one that actually wins - "
+                         "see build_features() for the measurements")
     ap.add_argument("--alpha", default="auto",
                     help="ridge strength, or 'auto' to sweep")
     ap.add_argument("--fit-on", default="all", choices=["all", "load"],
                     help="'load' excludes the unloading branch (hysteresis)")
+    ap.add_argument("--drop-first-press", action="store_true",
+                    help="discard press 0: on rested silicone the first press "
+                         "reads ~30%% high (Mullins effect), measured in rep1")
     ap.add_argument("--no-save", action="store_true")
     a = ap.parse_args()
 
@@ -249,7 +274,12 @@ def main():
         df = df[df["phase"].isin(["load", "dwell", "shear"])]
     # Free-space samples carry no information about force and would let the
     # model score well by predicting ~0 most of the time.
-    df = df[df["Fmag"] >= 0.05].reset_index(drop=True)
+    df = df[df["Fmag"] >= 0.05]
+    if a.drop_first_press:
+        first = df["press"].min()
+        df = df[df["press"] != first]
+        print(f"dropped press {first} (unconditioned - reads ~30% high)")
+    df = df.reset_index(drop=True)
     print(f"\ntraining rows: {len(df)} over {df['press'].nunique()} presses, "
           f"|F| range {df['Fmag'].min():.2f}-{df['Fmag'].max():.2f} N")
     if df["press"].nunique() < 5:
@@ -275,7 +305,9 @@ def main():
 
     print("\nheld-out error (whole presses held out):")
     P = grouped_cv(X, Y, groups, alpha)
-    full_rms = report(f"{a.features} (48ch)", Y, P)
+    label = ("scalar (1 feat)" if a.features == "scalar"
+             else f"{a.features} (48ch)")
+    full_rms = report(label, Y, P)
 
     # Baseline: the single-scalar model the palpation recorder currently
     # implies (response = sum|dZ|). If the 48-channel model is not clearly
@@ -284,8 +316,7 @@ def main():
     Xn = np.abs(dz).sum(1, keepdims=True)
     base_rms = report("sum|dZ| baseline", Y, grouped_cv(Xn, Y, groups, 1e-6))
     if full_rms < base_rms:
-        print(f"  -> 48-channel model is {base_rms / full_rms:.1f}x better "
-              "on |F|")
+        print(f"  -> {label} is {base_rms / full_rms:.1f}x better on |F|")
     else:
         print("  -> WARNING: no better than the scalar baseline. Suspect "
               "time misalignment or too few presses.")
