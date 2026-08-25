@@ -5,7 +5,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import socket
 import time
 from pose_utils import (
-    START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real,
+    START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, V_sim,
+    ATI_A_real, ATI_V_real, XELA_A_real, XELA_V_real,
     SIM_HOST, REAL_HOST, ATI_START_POSE_ROTVEC, XELA_START_POSE_ROTVEC,
     ATI_DEFAULT_TCP, XELA_DEFAULT_TCP,
 )
@@ -23,8 +24,7 @@ def main():
 
         elif mode == "real":
             HOST = REAL_HOST
-            A = A_real
-            V = V_real
+            A = V = None          # set below, once the sensor is known
             break
         else:
             print("Invalid input. Please type 'sim' or 'real'.")
@@ -36,11 +36,19 @@ def main():
             rotvec = ATI_START_POSE_ROTVEC
             default_tcp = ATI_DEFAULT_TCP
             use_csv = True
+            # This script already knows the tool, so it picks the matching
+            # transit speed rather than taking whatever the default happens to
+            # be. The XELA pad is a much larger, heavier end-effector with a
+            # cable and moves at roughly a third of the ATI speed.
+            if A is None:
+                A, V = ATI_A_real, ATI_V_real
             break
         elif sensor == "xela":
             rotvec = XELA_START_POSE_ROTVEC
             default_tcp = XELA_DEFAULT_TCP
             use_csv = False
+            if A is None:
+                A, V = XELA_A_real, XELA_V_real
             break
         else:
             print("Invalid input. Please type 'xela' or 'ati'.")

@@ -105,15 +105,14 @@ ATI_V_real = 0.7
 XELA_A_real = 0.2
 XELA_V_real = 0.1
 
-# Unprefixed names default to the XELA (slower) values, because every generic
-# mover in execution/ - go_home, start_pose, go_pre_pose, shutdown_robot -
-# imports these and runs whatever tool happens to be fitted. Slower is the safe
-# default there. Scripts that KNOW their tool should import the prefixed
-# constants explicitly, as run_side_strip_poses.py does for ATI.
+# Unprefixed names are the ATI values, which is what the generic movers in
+# execution/ (go_home, go_pre_pose, shutdown_robot) use. Scripts that KNOW
+# which tool is fitted select explicitly instead: home_start.py and
+# start_pose.py already ask, and run_side_strip_poses.py is ATI-only.
 A_sim = 8.0
-A_real = XELA_A_real
+A_real = ATI_A_real
 V_sim = 3.0
-V_real = XELA_V_real
+V_real = ATI_V_real
 
 # Approach/contact speed: used only for the short press-into-surface and retract
 # moves. Kept slow so the tool eases onto the cone instead of knocking it away.
