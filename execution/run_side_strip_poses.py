@@ -7,8 +7,12 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import paths
+# ATI_* transit speeds, not the unprefixed ones: this script drives the cone
+# sweep with the Nano17 + pointed indenter fitted. The unprefixed A_real/V_real
+# default to the slower XELA values for the generic movers in this directory,
+# which would make this sweep about three times longer than it needs to be.
 from pose_utils import (START_CLEARANCE_M, apex_start_tcp_pose, pose_str,
-                        A_sim, A_real, V_sim, V_real,
+                        A_sim, V_sim, ATI_A_real, ATI_V_real,
                         A_approach_sim, A_approach_real, V_approach_sim, V_approach_real,
                         SIM_HOST, REAL_HOST,
                         ur5_ik_near, UR5_IK_SEED)
@@ -54,8 +58,8 @@ def main():
 
         elif mode == "real":
             HOST = REAL_HOST
-            A = A_real
-            V = V_real
+            A = ATI_A_real
+            V = ATI_V_real
             A_app = A_approach_real
             V_app = V_approach_real
             SETTLE = 1

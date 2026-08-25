@@ -4,7 +4,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import socket
 import time
-from pose_utils import START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real, SIM_HOST, REAL_HOST
+from pose_utils import (
+    START_CLEARANCE_M, apex_start_tcp_pose, pose_str, A_sim, A_real, V_sim, V_real,
+    SIM_HOST, REAL_HOST, ATI_START_POSE_ROTVEC, XELA_START_POSE_ROTVEC,
+    ATI_DEFAULT_TCP, XELA_DEFAULT_TCP,
+)
 
 # Constants
 PORT = 30003
@@ -31,9 +35,27 @@ while True:
     else:
         print("Invalid input. Please type 'sim' or 'real'.")
 
+while True:
+    sensor = input("Select sensor ('xela' or 'ati'): ").strip().lower()
+
+    if sensor == "ati":
+        ROTVEC = ATI_START_POSE_ROTVEC
+        DEFAULT_TCP = ATI_DEFAULT_TCP
+        USE_CSV = True
+        break
+    elif sensor == "xela":
+        ROTVEC = XELA_START_POSE_ROTVEC
+        DEFAULT_TCP = XELA_DEFAULT_TCP
+        USE_CSV = False
+        break
+    else:
+        print("Invalid input. Please type 'xela' or 'ati'.")
+
 
 def main():
-    start_pose = apex_start_tcp_pose(clearance_m=START_CLEARANCE_M)
+    start_pose = apex_start_tcp_pose(
+        clearance_m=START_CLEARANCE_M, rotvec=ROTVEC, default_tcp=DEFAULT_TCP, use_csv=USE_CSV
+    )
     start_pose_line = pose_str(start_pose)
     print(
         f"Start pose: apex TCP + {START_CLEARANCE_M * 1000:.0f} mm in Z -> "

@@ -88,16 +88,32 @@ def tilt_normal_toward_vertical(normal, tilt_deg):
 
 
 # Robot IP addresses for Sim and Real PC
-SIM_HOST = "172.17.0.3"
+SIM_HOST = "172.17.0.2"
 REAL_HOST = "192.168.0.110"
 
 # Velocity and Acceleration for Sim and Real Robot.
 # Transit moves are joint-space (movej): v is rad/s, a is rad/s^2. Sim is pushed
 # near the UR5 joint limit (~3.14 rad/s) since there's no hardware to protect.
+#
+# The real-robot transit speed is TOOL DEPENDENT. The ATI figures were tuned
+# with the Nano17 and its small pointed indenter; the XELA pad is a much larger,
+# heavier end-effector with a cable, so it transits at roughly a third of that.
+# Running ATI speeds with the XELA fitted swings a big tool fast near the
+# phantom, and the XELA speeds make the ATI sweep needlessly slow.
+ATI_A_real = 0.35
+ATI_V_real = 0.7
+XELA_A_real = 0.2
+XELA_V_real = 0.1
+
+# Unprefixed names default to the XELA (slower) values, because every generic
+# mover in execution/ - go_home, start_pose, go_pre_pose, shutdown_robot -
+# imports these and runs whatever tool happens to be fitted. Slower is the safe
+# default there. Scripts that KNOW their tool should import the prefixed
+# constants explicitly, as run_side_strip_poses.py does for ATI.
 A_sim = 8.0
-A_real = 0.35
+A_real = XELA_A_real
 V_sim = 3.0
-V_real = 0.7
+V_real = XELA_V_real
 
 # Approach/contact speed: used only for the short press-into-surface and retract
 # moves. Kept slow so the tool eases onto the cone instead of knocking it away.
@@ -109,7 +125,14 @@ V_approach_real = 0.1
 
 # Default orientation used when hovering above the cone apex.
 TOOL_TIP_OFFSET = np.array([0.0, 0.0, 0.086])
-START_POSE_ROTVEC = np.array([-2.2, 2.2, 0.0])
+START_POSE_ROTVEC = np.array([0.0, 3.12, 0.03])
+ATI_START_POSE_ROTVEC = np.array([-2.2, 2.2, 0.0])
+XELA_START_POSE_ROTVEC = np.array([0.0, 3.12, 0.03])
+
+# Default apex TCP position (m), used when physical_points.csv can't be read.
+ATI_DEFAULT_TCP = np.array([0.002490, -0.513500, 0.21185])
+XELA_DEFAULT_TCP = np.array([-0.000988, -0.514494, 0.21185])
+
 START_CLEARANCE_M = 0.03
 
 # Approach & press distance m
@@ -197,27 +220,44 @@ MIN_ORIENTATION_TILT_DEG = 7
 MAX_ORIENTATION_TILT_DEG = 14
 
 
-def apex_start_tcp_pose(clearance_m=None, physical_points_csv=None):
+def apex_start_tcp_pose(clearance_m=None, physical_points_csv=None, rotvec=None, default_tcp=None, use_csv=True):
     """
     Safe hover pose above the cone apex.
 
     Uses the recorded apex-touch TCP pose and lifts it by clearance along base Z.
     With vertical-ish approach this matches ~1 cm above the cone top in practice.
+
+    rotvec defaults to START_POSE_ROTVEC; pass ATI_START_POSE_ROTVEC or
+    XELA_START_POSE_ROTVEC to select the sensor-specific start orientation.
+    default_tcp (used when use_csv is False, or when physical_points_csv can't
+    be read) defaults to ATI_DEFAULT_TCP; pass ATI_DEFAULT_TCP or
+    XELA_DEFAULT_TCP explicitly to match the sensor in use.
+    use_csv: physical_points.csv holds ATI's calibrated apex touch point, not
+    XELA's - pass False (as done for the xela sensor) to use default_tcp
+    directly instead of reading it.
     """
     if clearance_m is None:
         clearance_m = START_CLEARANCE_M
     if physical_points_csv is None:
         physical_points_csv = _DEFAULT_PHYSICAL_POINTS_CSV
+    if rotvec is None:
+        rotvec = START_POSE_ROTVEC
+    if default_tcp is None:
+        default_tcp = ATI_DEFAULT_TCP
 
-    default_tcp = np.array([0.002490, -0.513500, 0.21185])
-    rotvec = START_POSE_ROTVEC.copy()
+    default_tcp = np.asarray(default_tcp, dtype=float)
+    rotvec = np.asarray(rotvec, dtype=float).copy()
 
-    try:
-        import pandas as pd
+    tcp = None
+    if use_csv:
+        try:
+            import pandas as pd
 
-        row = pd.read_csv(physical_points_csv).iloc[0]
-        tcp = np.array([row["x_tcp"], row["y_tcp"], row["z_tcp"]], dtype=float)
-    except (OSError, KeyError, IndexError, ValueError):
+            row = pd.read_csv(physical_points_csv).iloc[0]
+            tcp = np.array([row["x_tcp"], row["y_tcp"], row["z_tcp"]], dtype=float)
+        except (OSError, KeyError, IndexError, ValueError):
+            tcp = None
+    if tcp is None:
         tcp = default_tcp.copy()
 
     tcp[2] += clearance_m

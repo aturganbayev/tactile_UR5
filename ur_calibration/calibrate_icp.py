@@ -11,8 +11,21 @@ import paths
 from pose_utils import tcp_pose_to_contact
 
 
-def load_physical_contacts():
-    df = pd.read_csv(paths.PHYSICAL_POINTS)
+def load_physical_contacts(points_csv=None, use_stored_contacts=False):
+    """Contact points for the fit.
+
+    use_stored_contacts is for the XELA recorder, whose x/y/z columns are NOT
+    a plain TCP + R*offset - they already include the on-pad centroid
+    correction that turns a flat-pad edge touch into a real contact point.
+    Recomputing them from the TCP pose would silently throw that away, which
+    is what the default branch below does.
+    """
+    df = pd.read_csv(points_csv or paths.PHYSICAL_POINTS)
+
+    if use_stored_contacts:
+        if not {"x", "y", "z"}.issubset(df.columns):
+            raise ValueError("expected x/y/z contact columns")
+        return df[["x", "y", "z"]].to_numpy(dtype=float)
 
     if {"rx", "ry", "rz"}.issubset(df.columns):
         contacts = []
@@ -37,7 +50,23 @@ def mesh_apex_meters(mesh):
 
 
 def main():
-    print("=== ICP Calibration ===")
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--xela", action="store_true",
+                    help="use the XELA-probed points and write the XELA "
+                         "registration files, leaving the Nano17 ones intact")
+    args = ap.parse_args()
+
+    if args.xela:
+        points_csv = paths.PHYSICAL_POINTS_XELA
+        out_surface = paths.SURFACE_POINTS_BASE_XELA
+        out_matrix = paths.ICP_MATRIX_XELA
+    else:
+        points_csv = paths.PHYSICAL_POINTS
+        out_surface = paths.SURFACE_POINTS_BASE
+        out_matrix = paths.ICP_MATRIX
+
+    print("=== ICP Calibration ===" + ("  [XELA]" if args.xela else ""))
 
     try:
         stl_df = pd.read_csv(paths.SURFACE_POINTS)
@@ -46,9 +75,9 @@ def main():
         return
 
     try:
-        phys_points = load_physical_contacts()
+        phys_points = load_physical_contacts(points_csv, args.xela)
     except FileNotFoundError:
-        print("Error: physical_points.csv not found. Run record_icp_points.py first.")
+        print(f"Error: {points_csv} not found. Run the recorder first.")
         return
 
     if len(phys_points) < 4:
@@ -85,7 +114,7 @@ def main():
     T_stl_to_robot = np.eye(4)
     T_stl_to_robot[:3, :3] = R_vert
     T_stl_to_robot[:3, 3] = t
-    np.savetxt(paths.ICP_MATRIX, T_stl_to_robot)
+    np.savetxt(out_matrix, T_stl_to_robot)
 
     ones = np.ones((len(stl_points), 1))
     aligned_points = (T_stl_to_robot @ np.hstack([stl_points, ones]).T).T[:, :3]
@@ -104,7 +133,7 @@ def main():
             "nz": aligned_normals[:, 2],
         }
     )
-    out_df.to_csv(paths.SURFACE_POINTS_BASE, index=False)
+    out_df.to_csv(out_surface, index=False)
 
     from scipy.spatial import cKDTree
 
@@ -119,9 +148,13 @@ def main():
         f"Max: {mesh_distances.max() * 1000:.2f} mm"
     )
 
-    print("\nSaved surface_points_base.csv and icp_transformation_matrix.txt")
-    print("Next: python3 ur_calibration/validate_calibration.py")
-    print("Then: python3 pose_generation/generate_side_strip_poses.py")
+    print(f"\nSaved {os.path.basename(out_surface)} and "
+          f"{os.path.basename(out_matrix)}")
+    if args.xela:
+        print("Next: python3 Xela_sensor/palpation/make_xela_poses.py --xela")
+    else:
+        print("Next: python3 ur_calibration/validate_calibration.py")
+        print("Then: python3 pose_generation/generate_side_strip_poses.py")
 
 
 if __name__ == "__main__":

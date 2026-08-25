@@ -29,7 +29,17 @@ PHYSICAL_POINTS = os.path.join(CALIBRATION, "physical_points.csv")
 SURFACE_POINTS_BASE = os.path.join(CALIBRATION, "surface_points_base.csv")
 ICP_MATRIX = os.path.join(CALIBRATION, "icp_transformation_matrix.txt")
 
+# XELA-specific registration. Separate from the files above because those were
+# probed with the Nano17's pointed tip: both the probe and the pose generator
+# apply TOOL_TIP_OFFSET, so an error in it cancels only when the SAME tool does
+# both. Probing with the XELA pad and pressing with it restores that
+# cancellation without needing the true offset.
+PHYSICAL_POINTS_XELA = os.path.join(CALIBRATION, "physical_points_xela.csv")
+SURFACE_POINTS_BASE_XELA = os.path.join(CALIBRATION, "surface_points_base_xela.csv")
+ICP_MATRIX_XELA = os.path.join(CALIBRATION, "icp_transformation_matrix_xela.txt")
+
 # Figure outputs
 SURFACE_POINTS_PLOT = os.path.join(FIGURES, "surface__points_cone_plot.png")
 SURFACE_NORMALS_PLOT = os.path.join(FIGURES, "surface__points_cone_normals_plot.png")
 SIDE_STRIP_PLOT = os.path.join(FIGURES, "cone_touch_poses.png")
+XELA_POSES_PLOT = os.path.join(FIGURES, "xela_poses.png")
