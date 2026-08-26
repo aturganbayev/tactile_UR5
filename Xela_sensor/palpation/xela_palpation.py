@@ -169,14 +169,25 @@ CONTACT_TOTAL_COUNTS = 350   # and the whole pad must show this much, which
 # that migration, so it cannot be satisfied by one saturated taxel and stops
 # when the PAD AS A WHOLE has taken a set load.
 #
-# 8000 chosen from that run's distribution of totals at the old stop
-# (min 3232, p25 8175, median 8861, max 11337). Replaying the recorded traces:
-#     target 8000 -> 19 of 23 reach it within the travel already taken
-#     target 9000 -> only 11 of 23, because many finished just under 9000
-# The four that do not reach 8000 within recorded travel are the shallow
-# corner-contact poses, which under this criterion press deeper instead of
-# stopping on a saturated corner - which is the entire point of the change.
-TARGET_TOTAL_COUNTS = 8000
+# 5000, lowered from 8000 because 8000 is NOT REACHABLE ON SOFT SPECIMENS
+# within a safe force. Depth needed to reach each target, measured across six
+# specimens:
+#            4000     5000     6000     8000
+#   red_bot   4.2      5.2      6.1      7.8
+#   red_top   4.4      5.4      6.4      7.9
+#   red_mid   4.6      5.8      6.8      8.9
+#   blue_bot  6.1      7.3      8.9     10.3
+#   empty     7.0      8.3      9.4     11.4
+#   softest   7.6      9.8     11.3     14.0
+# At 8000 the softest specimen needed 14-17 mm and the UR5's own protective
+# stop engaged partway through the run (20260822_151442, 15 of 23 poses). A
+# target only some specimens can reach is not a valid comparison.
+#
+# 5000 is reached by every specimen on all 23 poses at 5.2-9.8 mm, and
+# preserves the discrimination: firmest to softest still spans 1.95x, the same
+# ratio 8000 gave. Nothing is lost but the deep pressing - which also keeps
+# clear of the force limit and is gentler on both sensor and phantom.
+TARGET_TOTAL_COUNTS = 5000
 
 # --- plateau, measured on the RUNNING MAXIMUM of the peak taxel ---
 #
@@ -1093,6 +1104,36 @@ class SimXelaReader:
         pass
 
 
+def select_out_names(base_dir):
+    """Ask what to call this recording, the way record_cone_press.py does.
+
+    Named runs are written flat as <name>.csv / <name>_summary.csv, which is
+    the layout rederive.py globs for and the naming the specimen comparisons
+    already use. Blank falls back to a timestamp.
+
+    An existing name is never overwritten - repeats get _2, _3 and so on, so
+    running a specimen twice for repeatability cannot silently destroy the
+    first run. That matters more than it sounds: the trajectory file is the
+    only thing that allows a lower target to be re-derived later without
+    going back to the robot.
+    """
+    name = input("Specimen name for this recording "
+                 "(blank for a timestamp): ").strip().replace(" ", "_")
+    if not name:
+        stamp = time.strftime("%Y%m%d_%H%M%S")
+        return (os.path.join(base_dir, f"{stamp}_palpation.csv"),
+                os.path.join(base_dir, f"{stamp}_palpation_summary.csv"))
+    traj = os.path.join(base_dir, f"{name}.csv")
+    if os.path.exists(traj):
+        n = 2
+        while os.path.exists(os.path.join(base_dir, f"{name}_{n}.csv")):
+            n += 1
+        name = f"{name}_{n}"
+        print(f"  that name exists - recording as '{name}' instead")
+    return (os.path.join(base_dir, f"{name}.csv"),
+            os.path.join(base_dir, f"{name}_summary.csv"))
+
+
 def select_host():
     while True:
         m = input("Select mode ('sim' or 'real'): ").strip().lower()
@@ -1182,7 +1223,7 @@ def monitor(xela):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--poses",
-                    default=os.path.join(paths.DATA, "xela_poses.csv"),
+                    default=os.path.join(paths.DATA, "xela_poses_nano17reg.csv"),
                     help="pose grid. Default is the PAD-SIZED grid from "
                          "make_xela_poses.py; the old cone_touch/ "
                          "xela_palpation grids are point-tip spacing and "
@@ -1338,9 +1379,7 @@ def main():
         input(f"\nAbout to indent {len(poses)} pose(s) to {crit}. "
               "Supervise, hand on the e-stop. Enter to start ...")
 
-    stamp = time.strftime("%Y%m%d_%H%M%S")
-    traj = os.path.join(DATA_DIR, f"{stamp}_palpation.csv")
-    summ = os.path.join(DATA_DIR, f"{stamp}_palpation_summary.csv")
+    traj, summ = select_out_names(DATA_DIR)
     rows, summary = [], []
     sess = Session(xela, reader, host, args, rows)
 

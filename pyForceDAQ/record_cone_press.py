@@ -43,7 +43,7 @@ from forceDAQ.force.sensor import SensorSettings
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import paths
-from pose_utils import SIM_HOST, REAL_HOST, tcp_pose_to_contact
+from pose_utils import REAL_HOST, tcp_pose_to_contact
 
 # --------------------------------------------------------------------------- #
 #                                  SETTINGS                                    #
@@ -99,6 +99,25 @@ PRESS_REFRACTORY_S = 1.5
 # >= 0.023 m/s), so a press is only recorded if at least one in-contact sample
 # was slower than this (real holds sit at ~0.003 m/s).
 PRESS_HOLD_SPEED_MS = 0.01
+
+# --- reporting contacts that were NOT recorded ---------------------------- #
+#
+# Four things can silently drop a press, and a run that looks clean can still
+# be short. Recording blue_mid produced 284 presses for 288 commanded poses
+# with nothing on screen to say so, and the four turned out to have two
+# different causes:
+#   * poses 171, 172 - force never crossed PRESS_ON_N. The whole window peaked
+#     at 0.71 N with most excursions at 0.15-0.29 N, against a 0.34 N weakest
+#     recorded press. The tool touched, barely.
+#   * poses 183, 243 - force reached 1.41 N and 1.49 N, comfortably above
+#     threshold, but PRESS_OFF_DEBOUNCE_S merged each into its neighbour: two
+#     clear peaks in one window, one row written.
+# Both are now announced as they happen and totalled at the end. A silent
+# short file is the failure worth preventing - it shifts the press numbering
+# relative to the pose numbering for everything that follows.
+NEAR_MISS_N = 0.10         # contact peaking between this and PRESS_ON_N is
+                           # reported as a near miss rather than ignored
+EXPECTED_PRESSES = None    # set at startup from the prompt; None = don't check
 
 # Logging loop rate (the UR stream is ~125 Hz)
 LOOP_HZ = 125
@@ -561,16 +580,6 @@ class LiveHtmlPlot:
 # --------------------------------------------------------------------------- #
 
 
-def select_host():
-    while True:
-        mode = input("Select mode ('sim' or 'real'): ").strip().lower()
-        if mode == "sim":
-            return SIM_HOST
-        if mode == "real":
-            return REAL_HOST
-        print("Invalid input. Please type 'sim' or 'real'.")
-
-
 def select_out_dir(base_dir):
     """Ask for the egg (phantom) name and return the recording folder.
 
@@ -585,8 +594,27 @@ def select_out_dir(base_dir):
     return out_dir
 
 
+def select_expected():
+    """How many presses the motion script will command, so the run can say
+    outright whether the file came up short. Blank = don't check."""
+    txt = input("Expected number of presses (blank to skip the check): ").strip()
+    if not txt:
+        return None
+    try:
+        n = int(txt)
+        return n if n > 0 else None
+    except ValueError:
+        print("  not a number - skipping the check")
+        return None
+
+
 def main():
-    host = select_host()
+    global EXPECTED_PRESSES
+    # No sim/real prompt: this script reads a physical Nano17 over NI-DAQmx,
+    # so there is nothing to record against URSim. It always talks to the real
+    # robot.
+    host = REAL_HOST
+    EXPECTED_PRESSES = select_expected()
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     out_dir = select_out_dir(base_dir)
@@ -661,6 +689,14 @@ def main():
     last_press_end_t = 0.0   # for the refractory window
     off_since = None         # when Fz first dropped below PRESS_OFF_N (debounce)
     saw_hold = False         # press contained a near-stationary sample (real hold)
+    # --- accounting for contacts that do NOT become rows ---
+    near_peak = 0.0          # max Fmag of the current sub-threshold contact
+    n_near_miss = 0          # touched, but never reached PRESS_ON_N
+    n_refractory = 0         # above PRESS_ON_N but inside the refractory window
+    n_short = 0              # shorter than MIN_PRESS_DURATION_S
+    n_moving = 0             # tool never stationary (transit graze)
+    n_merged = 0             # a press containing more than one force bump
+    dips = 0                 # bumps within the CURRENT press
 
     try:
         next_t = time.perf_counter()
@@ -692,9 +728,32 @@ def main():
                     in_press = True
                     press_start_t = now
                     off_since = None
+                    dips = 0
+                    near_peak = 0.0
                     saw_hold = pose is not None and speed <= PRESS_HOLD_SPEED_MS
                     peak = {"fz": fz, "f": (fx, fy, fz), "fmag": fmag,
                             "pose": pose, "t": now}
+                elif fmag >= PRESS_ON_N:
+                    # Real force, suppressed because it arrived too soon after
+                    # the last press. Usually the retract rebound; occasionally
+                    # a genuine press that will now be missing from the file.
+                    if fmag > near_peak:
+                        near_peak = fmag
+                elif fmag >= NEAR_MISS_N:
+                    if fmag > near_peak:
+                        near_peak = fmag
+                elif near_peak > 0.0:
+                    # contact finished without ever starting a press
+                    if near_peak >= PRESS_ON_N:
+                        n_refractory += 1
+                        print(f"  [MISSED] contact of {near_peak:.2f} N "
+                              f"suppressed by the {PRESS_REFRACTORY_S:.1f} s "
+                              "refractory window - NOT recorded")
+                    else:
+                        n_near_miss += 1
+                        print(f"  [MISSED] contact peaked at {near_peak:.2f} N, "
+                              f"below PRESS_ON_N={PRESS_ON_N} - NOT recorded")
+                    near_peak = 0.0
             else:
                 if pose is not None and speed <= PRESS_HOLD_SPEED_MS:
                     saw_hold = True
@@ -704,14 +763,21 @@ def main():
                 if fmag <= PRESS_OFF_N:
                     if off_since is None:
                         off_since = now
+                        dips += 1
                     elif (now - off_since) >= PRESS_OFF_DEBOUNCE_S:
                         if (now - press_start_t) >= MIN_PRESS_DURATION_S and not saw_hold:
                             # tool never went stationary while in contact ->
                             # transit graze / adhesion blip, not a press
-                            print(f"  [info] ignored moving contact "
-                                  f"(peak |F| = {peak['fmag']:.2f} N, "
-                                  f"tool never stationary)")
-                        elif (now - press_start_t) >= MIN_PRESS_DURATION_S:
+                            n_moving += 1
+                            print(f"  [MISSED] moving contact of "
+                                  f"{peak['fmag']:.2f} N ignored - tool never "
+                                  "stationary - NOT recorded")
+                        elif (now - press_start_t) < MIN_PRESS_DURATION_S:
+                            n_short += 1
+                            print(f"  [MISSED] contact of {peak['fmag']:.2f} N "
+                                  f"lasted < {MIN_PRESS_DURATION_S} s - "
+                                  "NOT recorded")
+                        else:
                             press_count += 1
                             p = peak["pose"] if peak["pose"] is not None else [float("nan")] * 6
                             press_w.writerow([press_count, f"{peak['t']:.6f}",
@@ -725,6 +791,16 @@ def main():
                             if live_plot is not None:
                                 live_plot.add_press(tcp_pose_to_contact(p[:3], p[3:]),
                                                      press_count, peak["fz"])
+                            # More than one bump inside a single press means
+                            # PRESS_OFF_DEBOUNCE_S bridged a gap. That is
+                            # deliberate for the bimodal shell-then-ball curve,
+                            # but it also merges genuinely separate presses -
+                            # which is how blue_mid lost poses 183 and 243.
+                            if dips > 1:
+                                n_merged += 1
+                                print(f"           ^ WARNING: that press "
+                                      f"contained {dips} force bumps - it may "
+                                      "have merged two presses into one row")
                         in_press = False
                         last_press_end_t = now
                         peak = None
@@ -746,7 +822,36 @@ def main():
         press_file.close()
         reader.stop()
         recorder.quit()
+        missed = n_near_miss + n_refractory + n_short + n_moving
         print(f"\nDone. {press_count} press(es) recorded.")
+        if missed or n_merged:
+            print("  CONTACTS NOT RECORDED:")
+            if n_near_miss:
+                print(f"    {n_near_miss:>4}  peaked below PRESS_ON_N="
+                      f"{PRESS_ON_N} N (touched too lightly)")
+            if n_refractory:
+                print(f"    {n_refractory:>4}  suppressed by the "
+                      f"{PRESS_REFRACTORY_S} s refractory window")
+            if n_short:
+                print(f"    {n_short:>4}  shorter than {MIN_PRESS_DURATION_S} s")
+            if n_moving:
+                print(f"    {n_moving:>4}  moving contact (tool never stationary)")
+            if n_merged:
+                print(f"    {n_merged:>4}  press(es) contained >1 force bump - "
+                      "possible merge, check the trajectory")
+        if EXPECTED_PRESSES:
+            short = EXPECTED_PRESSES - press_count
+            if short > 0:
+                print(f"  *** {press_count} of {EXPECTED_PRESSES} expected "
+                      f"presses - {short} MISSING ***")
+                print("      Press numbering is now offset from pose numbering "
+                      "after each gap.\n      Align by position against the "
+                      "pose CSV before comparing runs.")
+            elif short < 0:
+                print(f"  *** {press_count} presses for {EXPECTED_PRESSES} "
+                      f"expected - {-short} EXTRA ***")
+            else:
+                print(f"  All {EXPECTED_PRESSES} expected presses recorded.")
         print(f"  {traj_path}")
         print(f"  {press_path}")
         if live_plot is not None:

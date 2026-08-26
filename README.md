@@ -6,6 +6,12 @@ Automated tactile exploration of silicone breast phantoms ("eggs") using a UR5 r
 cone.STL → surface points → ICP calibration → touch poses → robot execution → force+pose recording
 ```
 
+Two sensing approaches share that pipeline and are kept deliberately separate:
+the **ATI Nano17** on the end-effector pressing the phantom (above), and a
+**XELA uSkin tactile pad** on the end-effector recording raw tactile counts
+([see below](#xela-tactile-skin-separate-approach)). They have their own pose
+grids, recorders and analysis; neither modifies the other.
+
 ---
 
 ## Hardware
@@ -93,13 +99,12 @@ tactile_UR5/
 ├── ur_calibration/       # ICP calibration scripts + their artifacts
 ├── pose_generation/      # generate_side_strip_poses.py  (surface points → touch poses)
 ├── execution/            # run_*.py + robot move/stop scripts
-│   └── streaming/        # live camera stream (mediamtx + ffmpeg)
 ├── cone_plots/           # STL point-cloud / normals visualisation
 ├── pyForceDAQ/            # force + pose recording (ATI Nano17) and press-data analysis
 │   └── cone_data/         # sync_cone_data.sh landing spot (gitignored)
 ├── ur5_tactile_data/      # per-egg recordings + analysis batch scripts (see below)
 ├── Xela_sensor/           # second, independent sensor approach (see below) - XELA uSkin tactile skin
-│   └── calibration/       # per-taxel force calibration pipeline (new, separate from pyForceDAQ)
+│   └── palpation/         # pad-based palpation recorder + pose generator
 ├── data/                  # cone.STL + generated pose CSVs + fixture/mount CAD files
 └── figures/               # plot outputs from the CAD/pose pipeline (steps 1-6)
 ```
@@ -323,11 +328,16 @@ The sensor calibration file `pyForceDAQ/calibration/FT12876.cal` (the Nano17) is
 Two terminals on the DAQ PC:
 
 ```bash
-# Terminal 1 — recorder (choose 'real'; keep hands off the sensor during bias)
+# Terminal 1 — recorder (keep hands off the sensor during bias)
 cd pyForceDAQ
 python3 record_cone_press.py
-# Prompts for the egg name after mode: type e.g. "red_mid" to record into
-# cone_data/red_mid/, or "none" to record straight into cone_data/.
+# No sim/real prompt - this reads a physical Nano17 over NI-DAQmx, so there is
+# nothing to record against URSim; it always uses REAL_HOST.
+# Prompts for:
+#   * the expected number of presses (blank to skip) - so a short file is
+#     reported outright rather than discovered later
+#   * the egg name: e.g. "red_mid" -> cone_data/red_mid/, or "none" for
+#     cone_data/ directly.
 
 # Terminal 2 — motion that presses the cone
 python3 execution/run_side_strip_poses.py
@@ -358,6 +368,38 @@ The HTML is rendered by a background thread that only ever takes a quick snapsho
 After a press ends, new presses are ignored for `PRESS_REFRACTORY_S` (`1.5 s`) to filter out the rebound as the tool retracts. This window must stay **below the shortest real press-to-press gap** (~2.6 s at the current approach speeds), since a longer window would swallow weak presses outright and clip the impact peak off presses that start inside it.
 
 **Speed gate against transit false-positives:** lowering the force threshold to catch shallow real presses also makes the detector sensitive to brief transit contacts — grazing the cone during a between-strip swing, or the tacky silicone momentarily sticking to the retracting tip. Both happen entirely while the tool is moving; a real press always contains the ~1 s stationary hold at the pressed position. A candidate press is only recorded if at least one in-contact sample had TCP speed ≤ `PRESS_HOLD_SPEED_MS` (`0.01` m/s); otherwise it's dropped and logged as `[info] ignored moving contact`.
+
+**Contacts that are NOT recorded are announced.** Four things can silently
+drop a press, and a run that looks clean can still be short — recording
+`blue_mid` produced **284 presses for 288 commanded poses** with nothing on
+screen to say so. The two causes turned out to be different, and both are now
+reported as they happen and totalled at the end:
+
+```
+[MISSED] contact peaked at 0.28 N, below PRESS_ON_N=0.3 - NOT recorded
+[MISSED] contact of 1.41 N suppressed by the 1.5 s refractory window - NOT recorded
+[MISSED] moving contact of 0.87 N ignored - tool never stationary - NOT recorded
+Press 183: peak Fz = 1.39 N ...
+         ^ WARNING: that press contained 3 force bumps - it may have merged two presses
+```
+
+The merge warning matters as much as the threshold ones: `PRESS_OFF_DEBOUNCE_S`
+exists to ride out the bimodal shell-then-ball curve, but it also bridges
+genuinely separate presses, which is how `blue_mid` lost two poses whose force
+was 1.41 N and 1.49 N — well above any threshold.
+
+If you enter an expected press count at startup, a short file is stated
+outright:
+
+```
+*** 284 of 288 expected presses - 4 MISSING ***
+    Press numbering is now offset from pose numbering after each gap.
+    Align by position against the pose CSV before comparing runs.
+```
+
+That last point is the one to watch: after a gap, `presses.csv` row *k* is no
+longer pose *k*, so anything comparing specimens by row index is silently
+misaligned from there on.
 
 Logged at `LOOP_HZ` = 125 Hz.
 
@@ -414,36 +456,42 @@ ur5_tactile_data/
 
 ## XELA tactile skin (separate approach)
 
-A second, independent sensing approach alongside the cone/Nano17 pipeline above: a XELA Robotics uSkin tactile sensor mounted flat on the platform (in place of a phantom), force-calibrated against the **same UR5 + Nano17 rig** used for the cone presses. Kept fully separate by design — every script here is new; nothing in `pyForceDAQ/` is modified.
+A second, independent sensing approach alongside the cone/Nano17 pipeline
+above: a XELA Robotics uSkin tactile pad mounted on the **UR5 end-effector**
+and pressed against the phantom, recording **raw tactile counts** — there is no
+force calibration and none is needed, since both the stop criterion and the
+comparison between specimens are relative. Kept fully separate by design —
+every script here is new; nothing in `pyForceDAQ/` is modified.
 
 ```
 Xela_sensor/
 ├── xela_server, xela_viz, xela_log, xela_conf   # XELA's own compiled binaries (v1.7.8b)
 ├── xServ.ini              # sensor config (working config below)
 ├── xServ_sim_backup.ini   # original simulation-mode config, kept as a backup
-└── calibration/
-    ├── taxel_geometry.py         # touch-probed 4x4 taxel grid (measured reference point + pitch)
-    ├── nano17_press_session.py   # DAQ PC: closed-loop per-taxel press automation
-    ├── xela_session_logger.py    # this workstation: continuous raw XELA data logger
-    ├── sim_taxel_grid_dryrun.py  # sim-only motion check (no force/DAQ involved)
-    └── data/                     # session recordings land here
+└── palpation/
+    ├── xela_palpation.py     # the recorder: walks a pose grid, presses each to a tactile target
+    ├── make_xela_poses.py    # pad-sized pose grid generator (+ footprint plot)
+    ├── measure_pad_axes.py   # one-off: measure the pad's axes in the tool frame
+    ├── rederive.py           # re-derive results at a different target, offline
+    └── data/                 # recordings land here
 ```
 
 ### Hardware / software
 
 | Component | Details |
 |---|---|
-| Sensor | XELA Robotics uSkin, model **XR1944** (16 taxels, 2-channel, 2019-era controller), microcontroller ID **3** |
+| Sensor | XELA Robotics uSkin, model **XR1944** (16 taxels in a 4×4 grid at 5 mm pitch, 24×28 mm pad), microcontroller ID **3** |
 | Interface | ESD CAN-USB/2, socketcan (`can0`), 1 Mbit/s |
 | Server | XELA's own `xela_server` binary (v1.7.8b), broadcasts JSON over WebSocket (`ws://<ip>:5000`) |
-| Data | Raw, **uncalibrated** 16-bit X/Y/Z counts per taxel — this sensor generation has no native force calibration in XELA's own software (only uSPa22/44/46 do), hence the calibration pipeline below |
+| Data | Raw, **uncalibrated** 16-bit X/Y/Z counts per taxel — this sensor generation has no native force calibration in XELA's own software (only uSPa22/44/46 do) |
+| Module limit | 10 N / 25 kPa normal, **scaling with contact area** — the manual is explicit that half-surface contact means half the force |
 
 ### Bringing the sensor up
 
 ```bash
 sudo ip link set up can0 type can bitrate 1000000   # once per boot/replug (or via the udev rule below)
 cd Xela_sensor
-./xela_server -f xServ.ini --ip 0.0.0.0              # --ip 0.0.0.0 required: this build binds the LAN IP by default
+./xela_server -f xServ.ini --ip 0.0.0.0 -l xela_server.log
 cansend can0 203#07.00                                # manual start trigger - this old-protocol sensor doesn't auto-stream
 ./xela_viz -f xServ.ini                               # optional live visualisation
 ```
@@ -453,68 +501,117 @@ Stop the stream with `cansend can0 203#07.01`. The current `xServ.ini`
 `id = 3`) reflects several non-obvious fixes: `version = 1` is required for
 this old CAN-ID layout (the newer default, `version = 3`, silently maps zero
 taxels), and `--ip 0.0.0.0` is needed because this build otherwise binds only
-the machine's LAN IP, leaving `xela_viz`/localhost clients with no data.
+the machine's LAN IP, leaving `xela_viz`/localhost clients with no data. The
+`[viz]` section is also tuned (`arrows = full`, `origins = on`,
+`transparency = on`) — note the shipped defaults wrote comments *after* values
+on the same line, which Python's `configparser` does not strip by default, so
+those settings may never have taken effect.
 
-Optional: a udev rule brings `can0` up automatically whenever the adapter is
-plugged in, instead of running the `ip link` command by hand each time
-(`/etc/udev/rules.d/60-xela-can.rules`):
-```
-SUBSYSTEM=="net", ACTION=="add", KERNEL=="can*", RUN+="/usr/sbin/ip link set $env{INTERFACE} up type can bitrate 1000000"
-```
+### Pose grid
 
-### Per-taxel force calibration
-
-Since the XR1944 outputs raw magnetometer counts only, force calibration is
-done manually: cross-pressing the XELA skin with the Nano17 (already mounted
-on the UR5 end-effector for the cone presses) at each of the 16 taxel
-locations, over a range of known forces, to fit a counts→Newtons model per
-taxel. For this the sensor sits on the breadboard mount
-(`data/xela_sensor_breadboard_mount.STL`) and is pressed with the sharper
-indenter tip (`data/tip_touch_li_0.7.STL`) for better single-taxel isolation
-— a broad tip lights up 6-8 neighbouring taxels at once, blurring the
-per-taxel signal.
-
-**Split across two machines, synced by timestamp** — the Nano17 only works on
-the DAQ PC (NI-DAQmx driver + hardware), the CAN-USB adapter only on this
-workstation:
+`make_xela_poses.py` generates poses sized for the **pad**, not for a point
+tip. The cone grid (`cone_touch_poses.csv`, 288 poses) was built for the
+Nano17's 0.7 mm indenter — consecutive poses sit 0.8 mm apart, which for a
+24×28 mm pad means re-measuring the same contact patch over and over. This
+generator instead places rings spaced by pad footprint down the slant, with
+`circumference / spacing` poses in each ring, so coverage adapts to the taper.
 
 ```bash
-# This workstation, one terminal (after bringing the XELA server up as above):
-python3 Xela_sensor/calibration/xela_session_logger.py <label>
-
-# DAQ PC, another terminal:
-python3 Xela_sensor/calibration/nano17_press_session.py <label> [taxel_index]
+python3 Xela_sensor/palpation/make_xela_poses.py
 ```
 
-`nano17_press_session.py` automatically visits all 16 taxel positions (from
-`taxel_geometry.py` — one touch-probed reference pose plus a measured 5mm
-pitch grid, confirmed against the sensor's documented layout), and at each
-one steps the robot down in 0.2mm increments, holding at six force
-checkpoints (`0.5, 1, 2, 4, 6, 8` N) while logging the Nano17 ground truth.
-Safety limits apply throughout: a hard force ceiling well under this sensor
-generation's 10N limit, an absolute travel cap independent of the force
-reading (guards against a stuck/dead sensor value), and a per-taxel
-contact-detection timeout — one taxel aborting doesn't stop the sweep. Pass a
-single `taxel_index` (0-15) to sanity-check one taxel before the full sweep.
+**Output:** `data/xela_poses_nano17reg.csv` (23 poses in 3 rings, ~53% pad
+overlap at 12 mm spacing), plus `figures/xela_poses_nano17reg.png` showing the
+actual pad footprints — the overlap and the overhang past the phantom edge are
+invisible from centre markers alone.
 
-`xela_session_logger.py` just logs every raw WebSocket message with a
-wall-clock timestamp; the two machines' logs are reconciled afterward using
-the Nano17 session's checkpoint hold-time windows to look up the matching
-XELA readings.
+Two things it does that the point-tip generator does not:
 
-**Dry-run in sim first**, same convention as the cone pipeline:
-`sim_taxel_grid_dryrun.py` visits every taxel's hover pose in URSim with no
-force/DAQ logic at all, to confirm the grid geometry is reachable and safe
-before ever running for real.
+- **Wrist-3 minimisation.** `normal_to_rotvec` ties the tool yaw to the ring
+  azimuth, so a ring sweeping 0→360° spins J6 a full turn; four rings
+  accumulated **~1400° in one direction**, which both exceeds the ±360° joint
+  limit and wraps the sensor cable four times. Rotation about the press axis
+  carries no information here (the pad is read as a whole-pad scalar), so the
+  generator searches that spin per pose and keeps whichever puts J6 nearest
+  neutral: **1400° → 59°**.
+- **A higher floor.** `MIN_HEIGHT_FRACTION = 0.65` versus the cone grid's 0.45.
+  The binding constraint is not the contact height but the **pad edge**: the
+  pad reaches ~14 mm past its centre, so at the 14° tilt used low down its
+  lower edge sits ~10 mm below whatever it touches. At 0.50 the lowest ring hit
+  the platform and every one of its poses "reached target" in 2–4 mm.
+
+### Recording
 
 ```bash
-python3 Xela_sensor/calibration/sim_taxel_grid_dryrun.py [taxel_index] [pause_seconds]
+python3 Xela_sensor/palpation/xela_palpation.py
 ```
 
-**Status:** the press/logging pipeline above is built and verified (sim
-motion confirmed reachable; single-taxel real runs not yet done at time of
-writing). The fitting step that turns `(taxel, force level, Nano17 N, XELA
-counts)` rows into a per-taxel counts→Newtons model is not yet built.
+Prompts for `sim`/`real` and a **specimen name**; writes `<name>.csv` (the full
+trajectory) and `<name>_summary.csv` (one row per pose). An existing name is
+never overwritten — repeats become `<name>_2`, `<name>_3`.
+
+At each pose it settles, takes a per-pose baseline, approaches until the
+taxels register contact, then presses until the **total** response across all
+16 taxels reaches `TARGET_TOTAL_COUNTS`. Motion is continuous rather than
+stepped: one slow `movel` that the sensor interrupts with `stopl()`, so
+overshoot is latency × speed (~0.4 mm) instead of a step size.
+
+**Why total and not peak.** Peak is a single-taxel reading, so any corner
+touching hard ends the press regardless of how little of the pad is loaded. In
+one run every pose reported "1400 peak counts" while the actual load spanned
+**3187–11337** — a 96% spread, and those are not comparable measurements. On
+the total criterion the same 23 poses land within **1.2%** of each other.
+
+Useful flags:
+
+| Flag | Effect |
+|---|---|
+| `--check` | Offline reachability + joint-limit + cable wind-up check. No robot, no sensor. |
+| `--monitor` | Live per-taxel readout with running maxima. No robot motion. |
+| `--motion-only` | Visit approach poses without pressing — for URSim, where there is nothing to touch. |
+| `--limit N` | First N poses only. |
+| `--target-total N` | Override the stop target. |
+
+**Outcome per pose** (`reason` in the summary): `ok` (reached target),
+`travel_cap` (18 mm, still climbing), `over_range` (a taxel hit 2200 counts —
+recorded and the sweep continues), `no_contact`, `xela_stalled`. A pose whose
+response stops growing is *flagged* (`went_flat`) but never stopped — stopping
+on it made marginal poses bistable, reporting 485 counts on one run and 1418 on
+the next for the same physical egg.
+
+### Re-deriving at a different target
+
+Every press is logged continuously, so a run recorded at one target still
+contains everything needed to answer "where would it have stopped at a lower
+one?".
+
+```bash
+python3 Xela_sensor/palpation/rederive.py --target 4000
+```
+
+This matters: 8000 was originally chosen from a firm specimen and turned out to
+need 14–17 mm on soft ones, where the UR5's own protective stop engaged. The
+whole set was re-derived at 5000 without touching the robot. **Keep the
+trajectory CSVs** — the summaries alone cannot do this.
+
+### What was tried and rejected
+
+Recorded here so it is not repeated:
+
+- **Converting counts to Newtons at all.** Per-taxel calibration is not
+  achievable on this sensor — cross-talk spreads load to neighbours above
+  ~1–1.5 N — and a whole-pad model caps at ~0.66 N RMS with a flat learning
+  curve, so more data does not lift it. Palpation therefore works in **raw
+  counts**, which is sufficient: the stop criterion and the comparison between
+  specimens are both relative.
+- **Re-aiming the pad to centre the contact** — the mechanism works (it centres
+  by the predicted amount once the pad-axis mapping is measured rather than
+  assumed), but outcomes got **worse**: mean peak 1218 → 991 over the same four
+  poses. The correlation that motivated it was confounded — where the pad
+  happens to sit flat it gets both a central contact and good loading, and
+  tilting to force centring does not create flatness. Kept behind `--adapt`,
+  off by default.
+
 
 ---
 
@@ -524,28 +621,6 @@ counts)` rows into a per-taxel counts→Newtons model is not yet built.
 
 ---
 
-### Live camera stream
-
-A Logitech C930 webcam mounted on the setup streams live video over the Tailscale VPN so the robot can be monitored remotely.
-
-**Start / stop the stream:**
-
-```bash
-python3 execution/streaming/stream.py
-# prompts: start / stop
-```
-
-**Access (Tailscale network only):**
-
-| Protocol | URL | Recommended client |
-|---|---|---|
-| RTSP | `rtsp://100.110.244.54:8554/cam` | VLC (low latency) |
-| HLS | `http://100.110.244.54:8888/cam` | browser |
-| WebRTC | `http://100.110.244.54:8889/cam` | browser (lowest latency) |
-
-The stream is only reachable from devices on the same Tailscale network. The camera captures at **1280×720 @ 30 fps** (MJPEG input, H.264 output, ~2 Mbit/s). Configuration is in `execution/streaming/mediamtx.yml`; the ffmpeg capture command is in `execution/streaming/start_stream.sh`.
-
----
 
 ### TCP pose utilities (real robot)
 
@@ -616,8 +691,8 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `data/cone.STL` | CAD model of the silicone cone tool |
 | `data/egg_holder_4_revolvehole-3mm.SLDPRT` / `.STL` | SolidWorks part + STL export for the egg holder fixture (current revision; ~95×86×95mm bounding box) |
 | `data/xela_sensor_mounted.SLDPRT` / `.STL` | SolidWorks part + STL export of the mount attaching the XELA sensor to the **UR5 end-effector** (~99.5×59×80.7mm bounding box) |
-| `data/xela_sensor_breadboard_mount.SLDPRT` / `.STL` | Mount attaching the XELA sensor to the **optical breadboard/platform** (~70×59×70mm bounding box) — this is the fixed placement used for [per-taxel force calibration](#xela-tactile-skin-separate-approach) against the Nano17 (renamed from `xela_sensor_mounted_copy` for clarity) |
-| `data/tip_touch_li_0.7.SLDPRT` / `.STL` | Sharper indenter tip (~21×34×21mm bounding box), for better per-taxel isolation during calibration presses than the standard cone-press tip |
+| `data/xela_sensor_breadboard_mount.SLDPRT` / `.STL` | Mount attaching the XELA sensor to the **optical breadboard/platform** (~70×59×70mm bounding box). Unused by the current pipeline, which mounts the pad on the end-effector — kept for bench tests against a fixed sensor |
+| `data/tip_touch_li_0.7.SLDPRT` / `.STL` | Sharper indenter tip (~21×34×21mm bounding box) — a narrower alternative to the standard cone-press tip |
 | `geometry/extract_points.py` | Sample surface points and normals from STL |
 | `cone_plots/cone_plot.py` | Visualise sampled surface point cloud |
 | `cone_plots/cone_plot_normals.py` | Visualise surface points with corrected outward normals |
@@ -626,10 +701,6 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `ur_calibration/validate_calibration.py` | Verify calibration quality against recorded points |
 | `pose_generation/generate_side_strip_poses.py` | Generate poses for multiple strips around the cone, top to bottom |
 | `execution/run_side_strip_poses.py` | Execute side strip touch sequence on the robot |
-| `execution/streaming/stream.py` | Interactive script to start or stop the camera stream |
-| `execution/streaming/start_stream.sh` | Starts mediamtx RTSP server and ffmpeg camera capture |
-| `execution/streaming/stop_stream.sh` | Kills mediamtx and ffmpeg processes |
-| `execution/streaming/mediamtx.yml` | mediamtx configuration (RTSP/HLS/WebRTC bound to Tailscale IP) |
 | `execution/home_start.py` | Move robot through pre-pose to start pose |
 | `execution/start_pose.py` | Move robot directly to start pose |
 | `execution/go_pre_pose.py` | Move robot to the pre-pose joint configuration only (cone-independent waypoint) |
@@ -646,11 +717,12 @@ Prompts for `sim`/`real`. Streams to the terminal and also saves to `execution/r
 | `ur5_tactile_data/plot_cone_data_batch.py` | Batch-run `plot_cone_data.py`'s plots over every egg folder here; skips recordings whose plots are already up to date |
 | `Xela_sensor/xServ.ini` | XELA server config for this sensor (`socketcan`/`can0`, model `XR1944`, `version = 1`, `id = 3`) |
 | `Xela_sensor/xServ_sim_backup.ini` | Original simulation-mode config, kept as a backup |
-| `Xela_sensor/calibration/taxel_geometry.py` | Hardcoded 16-taxel grid (touch-probed reference point + measured 5mm pitch); exposes `taxel_hover_pose(index)` |
-| `Xela_sensor/calibration/nano17_press_session.py` | DAQ PC: closed-loop per-taxel press automation — visits all 16 taxels, holds at 6 force checkpoints, logs Nano17 ground truth |
-| `Xela_sensor/calibration/xela_session_logger.py` | This workstation: continuous raw XELA WebSocket logger, timestamped for later alignment with the Nano17 session |
-| `Xela_sensor/calibration/sim_taxel_grid_dryrun.py` | Sim-only motion check — visits every taxel's hover pose in URSim, no force/DAQ logic |
-| `Xela_sensor/calibration/data/` | Session recordings (trajectory/checkpoint/XELA CSVs) land here |
+| `Xela_sensor/palpation/xela_palpation.py` | Walk a pose grid pressing each pose to a total tactile-count target; continuous sensor-interrupted motion, per-pose baseline, stall detection; `--check` / `--monitor` / `--motion-only` |
+| `Xela_sensor/palpation/make_xela_poses.py` | Pad-sized pose grid (rings spaced by footprint) with wrist-3 minimisation; also writes the pad-footprint plot |
+| `Xela_sensor/palpation/measure_pad_axes.py` | One-off: tilt a known amount on a flat surface to measure which tool axis each taxel-grid axis maps to |
+| `Xela_sensor/palpation/rederive.py` | Re-derive per-pose results at a different count target from recorded traces — no robot needed |
+| `Xela_sensor/palpation/data/` | Palpation recordings (`<specimen>.csv`, `<specimen>_summary.csv`) |
+| `ur_calibration/record_icp_points_xela.py` | Record ICP points using the pad as the probe: descends until the taxels register contact, corrects for where on the pad the touch landed |
 | `data/surface_points.csv` | Raw STL surface points (mm, STL frame) |
 | `ur_calibration/surface_points_base.csv` | Surface points in robot base frame (m) |
 | `ur_calibration/physical_points.csv` | Recorded physical touch points from teach pendant |
@@ -676,7 +748,8 @@ Defined in `pose_utils.py` and the generator/analysis scripts:
 | Press depth | `0.015` m | `pose_utils.py` |
 | Orientation tilt (off-normal) | `7°` apex band → `14°` lowest band (`MIN/MAX_ORIENTATION_TILT_DEG`) | `pose_utils.py` |
 | Sim transit speed / accel (joint) | `V_sim = 3` rad/s, `A_sim = 8` rad/s² | `pose_utils.py` |
-| Real transit speed / accel (joint) | `V_real = 0.7` rad/s, `A_real = 0.35` rad/s² | `pose_utils.py` |
+| Real transit speed / accel (joint), ATI | `ATI_V_real = 0.7` rad/s, `ATI_A_real = 0.35` rad/s² — the unprefixed `V_real`/`A_real` default to these | `pose_utils.py` |
+| Real transit speed / accel (joint), XELA | `XELA_V_real = 0.1` rad/s, `XELA_A_real = 0.2` rad/s² — larger, heavier tool with a cable | `pose_utils.py` |
 | Sim approach (contact) speed / accel | `V_approach_sim = 1` m/s, `A_approach_sim = 2.5` m/s² | `pose_utils.py` |
 | Real approach (contact) speed / accel | `V_approach_real = 0.1` m/s, `A_approach_real = 0.2` m/s² | `pose_utils.py` |
 | Lift before return to start | `SAFE_LIFT_M = 0.06` m (base +Z) | `execution/run_side_strip_poses.py` |
@@ -691,6 +764,13 @@ Defined in `pose_utils.py` and the generator/analysis scripts:
 | DAQ sample rate | `SENSOR_RATE = 500` Hz | `pyForceDAQ/record_cone_press.py` |
 | Force log rate | `125` Hz (`LOOP_HZ`) | `pyForceDAQ/record_cone_press.py` |
 | Force sensor | `FT12876` (Nano17) | `pyForceDAQ/record_cone_press.py` |
+| Near-miss report threshold | `NEAR_MISS_N = 0.10` N — contact peaking between this and `PRESS_ON_N` is reported as `[MISSED]` rather than ignored | `pyForceDAQ/record_cone_press.py` |
+| XELA press target | `TARGET_TOTAL_COUNTS = 5000` (total over all 16 taxels) | `Xela_sensor/palpation/xela_palpation.py` |
+| XELA per-taxel abort | `MAX_PEAK_COUNTS = 2200` | `Xela_sensor/palpation/xela_palpation.py` |
+| XELA travel caps | `20` mm approach, `18` mm press | `Xela_sensor/palpation/xela_palpation.py` |
+| XELA press speeds | `8` mm/s approach, `2` mm/s press (continuous, sensor-interrupted) | `Xela_sensor/palpation/xela_palpation.py` |
+| XELA baseline settle | `SETTLE_S = 3.0` s — the pad sits ~35% of the press amplitude *below* its pre-press level afterwards and is still ~15% low a minute later | `Xela_sensor/palpation/xela_palpation.py` |
+| XELA pose spacing / height floor | `12` mm spacing (~53% pad overlap), `MIN_HEIGHT_FRACTION = 0.65` | `Xela_sensor/palpation/make_xela_poses.py` |
 | Live plot on/off | `LIVE_PLOT = True` | `pyForceDAQ/record_cone_press.py` |
 | Live plot auto-open browser locally | `LIVE_PLOT_AUTO_OPEN = False` | `pyForceDAQ/record_cone_press.py` |
 | Live plot HTTP port | `LIVE_PLOT_PORT = 8765` (first free at/after this) | `pyForceDAQ/record_cone_press.py` |
